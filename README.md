@@ -54,6 +54,88 @@ Install Node.js 20.19 or newer from [nodejs.org](https://nodejs.org/), then run 
 npm run check
 ```
 
+The existing CI workflow (`.github/workflows/ci.yml`) still runs this validation on every pull request and every push to `main`. It is separate from deployment. The Azure deploy workflow also re-runs `npm ci` and `npm run check` before uploading so a failed check blocks deployment.
+
+## Deploy to Azure Static Web Apps
+
+Ghosties is hosted on [Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/overview). Infrastructure is managed with Terraform in `terraform/`. GitHub Pages deployment has been retired; do not re-enable `.github/workflows/deploy-pages.yml`.
+
+### Production Azure resources (Terraform)
+
+Committed `terraform/terraform.tfvars` pins:
+
+| Setting | Value |
+|---------|--------|
+| Resource group region | `westeurope` |
+| Static Web App region | `westeurope` (SWA-supported regions: `westus2`, `centralus`, `eastus2`, `westeurope`, `eastasia`) |
+| Resource group | `rg-ghosties-prod` |
+| Static Web App | `swa-ghosties-prod` |
+| SKU | Free |
+
+### Terraform remote state
+
+The deploy workflow initialises Terraform against this existing Azure Storage backend:
+
+| Setting | Value |
+|---------|--------|
+| Resource group | `rg-uks-foundation` |
+| Storage account | `stripalterraformproduks` |
+| Container | `tfstate-ghosties` |
+| State key | `ghosties.tfstate` |
+
+Grant the GitHub Actions OIDC identity permission to use that storage account and to create/manage `rg-ghosties-prod` and `swa-ghosties-prod` (for example Contributor on the subscription or on those resource groups).
+
+### GitHub Actions secrets
+
+**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+
+| Name | Expected value / purpose |
+|------|--------------------------|
+| `AZURE_CLIENT_ID` | App registration client ID for GitHub OIDC login |
+| `AZURE_TENANT_ID` | `62aa5204-8b12-4ee2-aaee-38615e81bf68` |
+| `AZURE_SUBSCRIPTION_ID` | `9b624e2f-8326-44e6-953d-b251af487227` |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Static Web App deployment token (from Terraform output after first apply) |
+
+Configure [Azure Login with OpenID Connect](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect) for the app registration (federated credential for this repository). Never commit client secrets, deployment tokens, or Terraform state into the repo.
+
+### First apply and deployment token
+
+After OIDC secrets are set, either run the deploy workflow on `main` or apply locally:
+
+```bash
+cd terraform
+az login
+terraform init \
+  -backend-config="resource_group_name=rg-uks-foundation" \
+  -backend-config="storage_account_name=stripalterraformproduks" \
+  -backend-config="container_name=tfstate-ghosties" \
+  -backend-config="key=ghosties.tfstate"
+terraform apply
+terraform output -raw deployment_token
+```
+
+Copy the deployment token into the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. Do not commit the token or Terraform state files.
+
+### What the workflow does
+
+The workflow `.github/workflows/deploy-azure-static-web-apps.yml`:
+
+- **Production (main only):** On push to `main` or manual `workflow_dispatch` while on `main`: Azure OIDC login → `terraform apply` → Node 22 `npm ci` / `npm run check` / `npm run build` → upload existing `dist` to production (no rebuild inside the Azure action). Production Terraform apply and production deploy never run for pull requests or non-`main` branches.
+- **Pull request preview:** On PRs targeting `main`: `terraform plan` (no apply) → same build → Azure **preview** environment only
+- On pull request close: closes the Azure preview environment
+- Fails before upload if Terraform apply (production path), `npm ci`, `npm run check`, or the Vite build fails
+
+### Find the deployed URL
+
+- **Production:** `terraform output static_web_app_url`, or Azure Portal → Static Web App `swa-ghosties-prod` → **Overview** → URL (also in the GitHub Actions job summary after a successful deploy).
+- **Pull request preview:** Open the pull request on GitHub; Azure Static Web Apps comments with the preview URL (or check the workflow run logs / summary).
+
+### Manual production redeployment
+
+1. Open the repository on GitHub → **Actions**.
+2. Select **Deploy Ghosties to Azure Static Web Apps**.
+3. Click **Run workflow**, choose the **`main`** branch, and run it. Running the workflow from any other branch does not deploy production.
+
 ## Cursor and OpenSpec
 
 Open the repository in Cursor, then run the setup script to install OpenSpec with the [expanded/full workflow](https://github.com/Fission-AI/OpenSpec/blob/main/docs/workflows.md#expandedfull-workflow-custom-selection) for Cursor (`propose`, `explore`, `new`, `continue`, `apply`, `update`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`):

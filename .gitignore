@@ -11,3 +11,17 @@ coverage/
 # OpenSpec-generated Cursor integration (recreated by setup-openspec.sh)
 .cursor/commands/opsx-*
 .cursor/skills/openspec-*
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!terraform/terraform.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

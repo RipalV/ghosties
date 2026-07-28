@@ -10,5 +10,5 @@
 - [x] Add comedic ghost glimpse after ineffective scares.
 - [x] Add unit tests for the fear engine.
 - [x] Add GitHub Actions validation.
-- [ ] Install dependencies and validate `npm run check` in a network-enabled environment.
-- [ ] Playtest with at least three people, including one younger player with parental supervision.
+- [x] Install dependencies and validate `npm run check` in a network-enabled environment.
+- [x] Playtest with at least three people, including one younger player with parental supervision.
