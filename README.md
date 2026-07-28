@@ -50,7 +50,7 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 
 ## Mobile play
 
-- Play in **landscape**. Portrait (or a very narrow window) shows a “Rotate to play” message and pauses interaction.
+- Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction.
 - The HUD keeps score/objective top-left, fear/energy top-right, and scare controls along the bottom, clear of safe-area insets.
 - Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 
