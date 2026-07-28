@@ -36,28 +36,28 @@
 
 Playtesting on a physical phone showed the play area filling only about a quarter of the screen, because the whole room was fitted into the space left after reserving HUD bands. These tasks give the lobby the full canvas.
 
-- [ ] 6.1 Extend the lobby world to roughly 1760×880 world units and furnish the added space with readable architecture and props, keeping ability range values unchanged
-- [ ] 6.2 Replace the fit-to-leftover-space container with an automatic camera: bounds set to the lobby world, base zoom derived so viewport height shows a constant world slice, and a soft follow with a deadzone that keeps the ghost clear of the HUD corners
-- [ ] 6.3 Restore world-space pointer conversion so every tap on the play area moves the ghost, with no drag-to-pan handling
-- [ ] 6.4 Rework the HUD into floating chips, a ghost card, and an action grid of at least 44 effective CSS pixels per button, plus transient status toasts, keeping state readable without relying on colour
-- [ ] 6.5 Add an off-screen indicator giving Nora's direction and approximate distance whenever she leaves the view
-- [ ] 6.6 Keep the rotate-to-play overlay for portrait and confirm it clears without a reload once a usable landscape viewport is restored
-- [ ] 6.7 Render at `min(devicePixelRatio, 2)` and derive camera zoom and HUD metrics from the same factor so small labels stay sharp
-- [ ] 6.8 Review ghost speed and NPC pacing in the larger lobby and record any tuning decision in the design document
-- [ ] 6.9 Add about three discrete zoom steps with a visible control and optional snap-to-step pinch, clamped so the view never leaves the lobby world, and confirm zoom does not alter scare outcomes
+- [x] 6.1 Extend the lobby world to roughly 1760×880 world units and furnish the added space with readable architecture and props, keeping ability range values unchanged
+- [x] 6.2 Replace the fit-to-leftover-space container with an automatic camera: bounds set to the lobby world, base zoom derived so viewport height shows a constant world slice, and a soft follow with a deadzone that keeps the ghost clear of the HUD corners
+- [x] 6.3 Restore world-space pointer conversion so every tap on the play area moves the ghost, with no drag-to-pan handling
+- [x] 6.4 Rework the HUD into floating chips, a ghost card, and an action grid of at least 44 effective CSS pixels per button, plus transient status toasts, keeping state readable without relying on colour
+- [x] 6.5 Add an off-screen indicator giving Nora's direction and approximate distance whenever she leaves the view
+- [x] 6.6 Keep the rotate-to-play overlay for portrait and confirm it clears without a reload once a usable landscape viewport is restored
+- [x] 6.7 Render at `min(devicePixelRatio, 2)` and derive camera zoom and HUD metrics from the same factor so small labels stay sharp
+- [x] 6.8 Review ghost speed and NPC pacing in the larger lobby and record any tuning decision in the design document
+- [x] 6.9 Add about three discrete zoom steps with a visible control and optional snap-to-step pinch, clamped so the view never leaves the lobby world, and confirm zoom does not alter scare outcomes
 - [ ] 6.10 Run `npm run check`, then playtest landscape phone sizes plus desktop for readability, touch reach, camera comfort, zoom behaviour, and console cleanliness
-- [ ] 6.11 Update the README mobile section for the automatic camera, the zoom control, and landscape play
+- [x] 6.11 Update the README mobile section for the automatic camera, the zoom control, and landscape play
 
 ## 7. Isometric visual language
 
 Adopts the presentation reference recorded in design decision 8, using 2D vector drawing only.
 
-- [ ] 7.1 Redraw the floor in isometric projection at a single fixed angle and replace the front-facing wall rectangles with the two far cutaway walls, keeping gameplay coordinates unchanged
-- [ ] 7.2 Redraw props as isometric volumes with visible tops and sides, one consistent light direction, and soft contact shadows
-- [ ] 7.3 Remove permanent text labels from props and make each recognisable by silhouette and detailing
-- [ ] 7.4 Add night-time exterior context beyond the walls — garden, path, hedge or fence, trees, moonlit sky — so view edges look intentional
-- [ ] 7.5 Strengthen interior lighting so lamps and windows cast warm pools against the cooler exterior
-- [ ] 7.6 Replace Nora's persistent name label with a head marker plus a slim fear bar, keeping reactions transient and readable without colour alone
-- [ ] 7.7 Rebuild the HUD chips as top-edge pills pairing a round icon with its value, and add a top-corner objective button with a notification marker
-- [ ] 7.8 Rebuild scare controls as a square action grid beside a bottom-corner ghost card, with selected and unavailable states readable without colour alone
+- [x] 7.1 Redraw the floor in isometric projection at a single fixed angle and replace the front-facing wall rectangles with the two far cutaway walls, keeping gameplay coordinates unchanged
+- [x] 7.2 Redraw props as isometric volumes with visible tops and sides, one consistent light direction, and soft contact shadows
+- [x] 7.3 Remove permanent text labels from props and make each recognisable by silhouette and detailing
+- [x] 7.4 Add night-time exterior context beyond the walls — garden, path, hedge or fence, trees, moonlit sky — so view edges look intentional
+- [x] 7.5 Strengthen interior lighting so lamps and windows cast warm pools against the cooler exterior
+- [x] 7.6 Replace Nora's persistent name label with a head marker plus a slim fear bar, keeping reactions transient and readable without colour alone
+- [x] 7.7 Rebuild the HUD chips as top-edge pills pairing a round icon with its value, and add a top-corner objective button with a notification marker
+- [x] 7.8 Rebuild scare controls as a square action grid beside a bottom-corner ghost card, with selected and unavailable states readable without colour alone
 - [ ] 7.9 Playtest the isometric read at phone size for depth clarity, prop recognition without labels, and character legibility against the lit floor

@@ -61,8 +61,7 @@ canvas {
 #fullscreen-toggle {
   position: fixed;
   top: max(8px, env(safe-area-inset-top, 0px));
-  left: 50%;
-  transform: translateX(-50%);
+  right: max(8px, env(safe-area-inset-right, 0px));
   z-index: 900;
   width: 46px;
   height: 46px;

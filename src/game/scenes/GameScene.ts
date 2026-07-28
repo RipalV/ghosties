@@ -1,22 +1,36 @@
 import Phaser from 'phaser';
 import { STARTING_ABILITIES, type ScareAbility } from '../abilities/ScareAbility';
 import { Ghost } from '../entities/Ghost';
-import { Npc } from '../entities/Npc';
+import { Npc, NPC_MAX_FEAR } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
-import { SceneBackdrop } from '../visuals/SceneBackdrop';
-import { HUD_LAYOUT, ROOM } from '../visuals/lobbyTheme';
+import {
+  clampZoomStepIndex,
+  nearestZoomStepIndex,
+  resolveCameraZoom,
+} from '../world/lobbyGeometry';
+import { CAMERA, GHOST_START, NORA_ROUTE, WORLD } from '../world/lobbyLayout';
+
+const OBJECTIVE = 'Haunt Nora gently — get close, then try a scare she has not seen yet.';
+/** How far inside the viewport edge (in CSS pixels) Nora must be to drop the marker. */
+const ON_SCREEN_INSET = 24;
+const PINCH_THRESHOLD = 0.15;
 
 export class GameScene extends Phaser.Scene {
   private ghost!: Ghost;
   private npc!: Npc;
   private ambience!: LobbyAmbience;
   private hud!: GameHud;
-  private backdrop!: SceneBackdrop;
-  /** Holds the fixed-coordinate lobby so gameplay maths stays viewport-independent. */
-  private lobby!: Phaser.GameObjects.Container;
+  /** Holds the fixed-coordinate lobby world that the camera frames. */
+  private world!: Phaser.GameObjects.Container;
+  private uiCamera!: Phaser.Cameras.Scene2D.Camera;
+  /** Game units per CSS pixel; game units are device pixels (see main.ts). */
+  private uiScale = 1;
+  private zoomStepIndex: number = CAMERA.defaultZoomStepIndex;
+  private pinchStartDistance = 0;
+  private pinchStartStepIndex: number = CAMERA.defaultZoomStepIndex;
   private score = 0;
   private energy = 100;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -27,23 +41,57 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.backdrop = new SceneBackdrop(this);
-    this.lobby = this.add.container(0, 0).setDepth(0);
+    this.uiScale = 1 / this.scale.zoom;
 
+    this.world = this.add.container(0, 0);
     const environment = new LobbyEnvironment(this);
     this.ambience = new LobbyAmbience(this);
-    this.hud = new GameHud(this);
+    this.ghost = new Ghost(this, GHOST_START.x, GHOST_START.y);
+    this.npc = new Npc(this, NORA_ROUTE[0].x, NORA_ROUTE[0].y);
+    this.world.add([environment.container, this.ambience.container, this.npc, this.ghost]);
 
-    this.ghost = new Ghost(this, 210, 330);
-    this.npc = new Npc(this, 510, 300);
-    this.lobby.add([environment.container, this.ambience.container, this.npc, this.ghost]);
+    this.hud = new GameHud(this, this.uiScale, {
+      objective: OBJECTIVE,
+      onZoomIn: () => this.setZoomStep(this.zoomStepIndex - 1),
+      onZoomOut: () => this.setZoomStep(this.zoomStepIndex + 1),
+    });
+
+    this.setupCameras();
+    this.setupInput();
+
+    this.hud.createAbilityControls(STARTING_ABILITIES, (ability) => this.useAbility(ability));
+    this.hud.setStatus('Move with WASD or tap the floor. Get close, then try a scare.');
+    this.updateHud();
+
+    this.layout();
+    this.scale.on('resize', this.layout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.layout, this));
+  }
+
+  private setupCameras(): void {
+    const { width, height } = this.scale.gameSize;
+    const main = this.cameras.main;
+
+    main.setBounds(0, 0, WORLD.width, WORLD.height);
+    main.startFollow(this.ghost, false, CAMERA.followLerp, CAMERA.followLerp);
+    main.ignore(this.hud.root);
+
+    // A second camera keeps the HUD at a constant size whatever the world zoom.
+    this.uiCamera = this.cameras.add(0, 0, width, height);
+    this.uiCamera.setScroll(0, 0);
+    this.uiCamera.ignore(this.world);
+  }
+
+  private setupInput(): void {
+    // A second pointer lets a pinch snap between zoom steps.
+    this.input.addPointer(1);
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.y >= this.hud.controlBandTop) return;
-      this.ghost.setTarget(
-        (pointer.x - this.lobby.x) / this.lobby.scaleX,
-        (pointer.y - this.lobby.y) / this.lobby.scaleY,
-      );
+      if (this.input.pointer2?.isDown) return;
+      if (this.hud.blocksPointer(pointer.x, pointer.y)) return;
+
+      const target = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+      this.ghost.setTarget(target.x, target.y);
     });
 
     const keyboard = this.input.keyboard;
@@ -60,31 +108,45 @@ export class GameScene extends Phaser.Scene {
       keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
       keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
     ];
-
-    this.hud.createAbilityControls(STARTING_ABILITIES, (ability) => this.useAbility(ability));
-    this.hud.setStatus('Move with WASD or tap the floor. Get close, then try a scare.');
-    this.updateHud();
-
-    this.layout();
-    this.scale.on('resize', this.layout, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.layout, this));
   }
 
-  /** Fits the fixed lobby into the live viewport and re-anchors the HUD to its edges. */
+  /** Re-frames the camera and re-anchors the HUD whenever the viewport changes. */
   private layout(): void {
     const { width, height } = this.scale.gameSize;
-    this.backdrop.resize(width, height);
 
-    const available = Math.max(160, height - HUD_LAYOUT.topBandHeight - HUD_LAYOUT.bottomBandHeight);
-    const scale = Math.min(width / ROOM.width, available / ROOM.artHeight);
+    this.cameras.main.setSize(width, height);
+    this.uiCamera.setSize(width, height);
+    this.uiCamera.setScroll(0, 0);
 
-    this.lobby.setScale(scale);
-    this.lobby.setPosition(
-      (width - ROOM.width * scale) / 2,
-      HUD_LAYOUT.topBandHeight + (available - ROOM.artHeight * scale) / 2,
+    this.applyZoom(width, height);
+    this.hud.layout(width, height);
+  }
+
+  private applyZoom(width: number, height: number): void {
+    const steps = CAMERA.zoomSteps;
+    const zoom = resolveCameraZoom(width, height, steps[this.zoomStepIndex]);
+    const main = this.cameras.main;
+
+    main.setZoom(zoom);
+    // The deadzone is world-space, so derive it from the visible slice.
+    main.setDeadzone(
+      (width / zoom) * CAMERA.deadzoneWidthFraction,
+      (height / zoom) * CAMERA.deadzoneHeightFraction,
     );
 
-    this.hud.layout(width, height);
+    const wider = this.zoomStepIndex + 1 < steps.length
+      ? resolveCameraZoom(width, height, steps[this.zoomStepIndex + 1])
+      : zoom;
+    this.hud.setZoomAvailability(this.zoomStepIndex > 0, wider < zoom - 1e-6);
+  }
+
+  private setZoomStep(index: number): void {
+    const next = clampZoomStepIndex(index);
+    if (next === this.zoomStepIndex) return;
+
+    this.zoomStepIndex = next;
+    const { width, height } = this.scale.gameSize;
+    this.applyZoom(width, height);
   }
 
   update(time: number, delta: number): void {
@@ -95,10 +157,57 @@ export class GameScene extends Phaser.Scene {
     this.ghost.update(delta);
     this.npc.update(time, delta);
     this.ambience.update(delta);
+    this.updatePinchZoom();
+    this.updateNpcIndicator();
 
     this.abilityKeys.forEach((key, index) => {
       if (Phaser.Input.Keyboard.JustDown(key)) this.useAbility(STARTING_ABILITIES[index]);
     });
+  }
+
+  private updatePinchZoom(): void {
+    const first = this.input.pointer1;
+    const second = this.input.pointer2;
+
+    if (!first?.isDown || !second?.isDown) {
+      this.pinchStartDistance = 0;
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(first.x, first.y, second.x, second.y);
+
+    if (this.pinchStartDistance === 0) {
+      this.pinchStartDistance = distance;
+      this.pinchStartStepIndex = this.zoomStepIndex;
+      return;
+    }
+
+    const ratio = distance / this.pinchStartDistance;
+    if (Math.abs(ratio - 1) < PINCH_THRESHOLD) return;
+
+    this.setZoomStep(nearestZoomStepIndex(CAMERA.zoomSteps[this.pinchStartStepIndex] * ratio));
+  }
+
+  private updateNpcIndicator(): void {
+    const main = this.cameras.main;
+    const { width, height } = this.scale.gameSize;
+    const screenX = (this.npc.x - main.worldView.x) * main.zoom;
+    const screenY = (this.npc.y - main.worldView.y) * main.zoom;
+
+    const inset = ON_SCREEN_INSET * this.uiScale;
+    const visible =
+      screenX > inset &&
+      screenX < width - inset &&
+      screenY > inset &&
+      screenY < height - inset;
+
+    if (visible) {
+      this.hud.hideNpcIndicator();
+      return;
+    }
+
+    const distance = Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, this.npc.x, this.npc.y);
+    this.hud.showNpcIndicator({ x: screenX, y: screenY }, distance);
   }
 
   private useAbility(ability: ScareAbility): void {
@@ -118,8 +227,8 @@ export class GameScene extends Phaser.Scene {
     this.npc.scareHistory.usesByCategory[ability.category] =
       (this.npc.scareHistory.usesByCategory[ability.category] ?? 0) + 1;
 
-    this.npc.fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, 100);
-    this.npc.stage = getFearStage(this.npc.fear);
+    const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
+    this.npc.syncFear(fear, getFearStage(fear));
     this.score = Math.max(0, this.score + result.scoreDelta);
 
     const failed = result.strength === 'none';
@@ -140,6 +249,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.npc.stage === 'possessed') {
       this.hud.setStatus('Nora is goofily possessed — haunting complete! 👻');
+      this.hud.setObjective(true);
     }
 
     this.time.delayedCall(1800, () => {

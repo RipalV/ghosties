@@ -42,18 +42,21 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 
 ## Controls
 
-- Move: WASD, mouse click, or touch the lobby floor
+- Move: WASD, mouse click, or tap anywhere on the lobby floor
 - Whisper: 1
 - Cold Puff: 2
 - Object Nudge: 3
-- Large on-screen scare buttons also work with mouse or touch
+- The square scare buttons beside the ghost card work with mouse or touch
+- Zoom: the **＋** and **－** buttons on the right edge, or a pinch (both snap to fixed zoom steps)
 
 ## Mobile play
 
-- Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction.
-- The canvas fills the viewport on any landscape ratio, so there are no letterbox bars beside the lobby.
-- Tap the **⛶** button at the top of the screen to enter full screen and hide the browser address bar. Browsers only allow this from a tap, and iPhone Safari does not support it — the game still fills the viewport there.
-- The HUD keeps score/objective top-left, fear/energy top-right, and scare controls along the bottom, clear of safe-area insets.
+- Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction; it clears on rotation without a reload.
+- The lobby fills the whole canvas on any ratio. The camera follows the ghost automatically inside a larger lobby world, so there are no letterbox bars and no panning to manage. When Nora walks out of view, an edge marker gives her direction and distance.
+- Zoom has three fixed steps and is clamped to the lobby, so the view can never end up somewhere unusable. Zoom changes the view only — scare ranges and outcomes are unaffected.
+- Rendering uses the device pixel ratio (capped at 2×), so small HUD text stays sharp on high-density screens.
+- Tap the **⛶** button in the top-right corner for full screen, which hides the browser address bar. Browsers only allow this from a tap, and iPhone Safari does not support it — the game still fills the viewport there.
+- The HUD floats over the play area: objective button and value chips along the top, ghost card with the scare grid in the bottom-left, zoom on the right edge, all clear of safe-area insets.
 - Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 
 ## Validate

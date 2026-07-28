@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
 import type { ScareAbility } from '../abilities/ScareAbility';
-import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
-import { AbilityButton } from './AbilityButton';
+import { HUD_LAYOUT } from '../visuals/lobbyTheme';
+import { ActionButton } from './ActionButton';
+import { CharacterCard } from './CharacterCard';
+import { HudChip } from './HudChip';
+import { IconButton } from './IconButton';
+import { OffscreenIndicator } from './OffscreenIndicator';
+import { StatusToast } from './StatusToast';
 
 export interface HudSnapshot {
   score: number;
@@ -10,133 +15,227 @@ export interface HudSnapshot {
   stage: string;
 }
 
+export interface GameHudOptions {
+  readonly objective: string;
+  readonly onZoomIn: () => void;
+  readonly onZoomOut: () => void;
+}
+
 /**
- * Screen-space HUD: score/objective top-left, fear/energy top-right, scare
- * controls along the bottom. Every element is repositioned from the live
- * viewport size so the layout works on landscape phones and desktop alike.
+ * Floating HUD drawn by a dedicated UI camera: pill chips along the top edge, an
+ * objective button in the top corner, and a ghost card with a square scare
+ * action grid in the bottom corner. Nothing here reserves space from the play
+ * area, and every element is repositioned from the live viewport size.
  */
 export class GameHud {
-  private readonly scoreText: Phaser.GameObjects.Text;
-  private readonly objectiveText: Phaser.GameObjects.Text;
-  private readonly fearText: Phaser.GameObjects.Text;
-  private readonly energyText: Phaser.GameObjects.Text;
-  private readonly statusText: Phaser.GameObjects.Text;
-  private readonly leftPanel: Phaser.GameObjects.Rectangle;
-  private readonly rightPanel: Phaser.GameObjects.Rectangle;
-  private readonly abilityButtons: AbilityButton[] = [];
+  /** Everything the UI camera draws; the world camera ignores this container. */
+  readonly root: Phaser.GameObjects.Container;
 
-  /** Top edge of the bottom control band, in screen pixels. */
-  private abilityBandTop = 0;
+  private readonly scoreChip: HudChip;
+  private readonly energyChip: HudChip;
+  private readonly fearChip: HudChip;
+  private readonly objectiveButton: IconButton;
+  private readonly zoomInButton: IconButton;
+  private readonly zoomOutButton: IconButton;
+  private readonly card: CharacterCard;
+  private readonly toast: StatusToast;
+  private readonly npcIndicator: OffscreenIndicator;
+  private readonly actionButtons: ActionButton[] = [];
+  private readonly blockedRegions: Phaser.Geom.Rectangle[] = [];
 
-  constructor(private readonly scene: Phaser.Scene) {
-    const depth = 100;
+  private viewWidth = 0;
+  private viewHeight = 0;
 
-    this.leftPanel = scene.add.rectangle(0, 0, 300, HUD_LAYOUT.panelHeight, PALETTE.hudPanel, 0.86)
-      .setStrokeStyle(2, PALETTE.hudStroke, 0.85)
-      .setOrigin(0, 0)
-      .setDepth(depth)
-      .setScrollFactor(0);
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly uiScale: number,
+    private readonly options: GameHudOptions,
+  ) {
+    this.root = scene.add.container(0, 0).setDepth(1000);
 
-    this.rightPanel = scene.add.rectangle(0, 0, 280, HUD_LAYOUT.panelHeight, PALETTE.hudPanel, 0.86)
-      .setStrokeStyle(2, PALETTE.hudStroke, 0.85)
-      .setOrigin(1, 0)
-      .setDepth(depth)
-      .setScrollFactor(0);
+    this.scoreChip = new HudChip(scene, '⭐', '0', uiScale);
+    this.energyChip = new HudChip(scene, '✨', '100', uiScale);
+    this.fearChip = new HudChip(scene, '😮', 'CALM 0', uiScale);
 
-    this.scoreText = scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '20px',
-      color: '#fff7cf',
-      fontStyle: 'bold',
-    }).setDepth(depth + 1).setScrollFactor(0);
-
-    this.objectiveText = scene.add.text(0, 0, 'Haunt Nora (gently!)', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '14px',
-      color: '#d8cef7',
-    }).setDepth(depth + 1).setScrollFactor(0);
-
-    this.fearText = scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '17px',
-      color: '#fff7cf',
-      align: 'right',
-    }).setOrigin(1, 0).setDepth(depth + 1).setScrollFactor(0);
-
-    this.energyText = scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '15px',
-      color: '#d8cef7',
-      align: 'right',
-    }).setOrigin(1, 0).setDepth(depth + 1).setScrollFactor(0);
-
-    this.statusText = scene.add.text(0, 0, '', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '16px',
-      color: '#fff7cf',
-      align: 'center',
-      backgroundColor: '#241836cc',
-      padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setDepth(depth + 1).setScrollFactor(0);
-  }
-
-  createAbilityControls(abilities: readonly ScareAbility[], onActivate: (ability: ScareAbility) => void): void {
-    abilities.forEach((ability, index) => {
-      this.abilityButtons.push(
-        new AbilityButton(this.scene, ability, String(index + 1), () => onActivate(ability)),
-      );
+    const objectiveSize = HUD_LAYOUT.objectiveSize * uiScale;
+    this.objectiveButton = new IconButton(scene, '📋', objectiveSize, uiScale, () => {
+      this.objectiveButton.setNotification(false);
+      this.setStatus(this.options.objective);
     });
+    this.objectiveButton.setNotification(true);
+
+    const zoomSize = HUD_LAYOUT.zoomButtonSize * uiScale;
+    this.zoomInButton = new IconButton(scene, '＋', zoomSize, uiScale, options.onZoomIn);
+    this.zoomOutButton = new IconButton(scene, '－', zoomSize, uiScale, options.onZoomOut);
+
+    this.card = new CharacterCard(scene, '👻', 'Ghost', uiScale);
+    this.toast = new StatusToast(scene, uiScale);
+    this.npcIndicator = new OffscreenIndicator(scene, 'Nora', uiScale);
+
+    this.root.add([
+      this.scoreChip,
+      this.energyChip,
+      this.fearChip,
+      this.objectiveButton,
+      this.zoomInButton,
+      this.zoomOutButton,
+      this.card,
+      this.toast,
+      this.npcIndicator,
+    ]);
   }
 
-  /** Screen-space top of the control band; taps below it belong to the HUD. */
-  get controlBandTop(): number {
-    return this.abilityBandTop;
+  createAbilityControls(
+    abilities: readonly ScareAbility[],
+    onActivate: (ability: ScareAbility) => void,
+  ): void {
+    abilities.forEach((ability, index) => {
+      const button = new ActionButton(this.scene, ability, String(index + 1), this.uiScale, () =>
+        onActivate(ability),
+      );
+      this.actionButtons.push(button);
+      this.root.add(button);
+    });
+
+    if (this.viewWidth > 0) this.layout(this.viewWidth, this.viewHeight);
   }
 
   layout(width: number, height: number): void {
-    const pad = HUD_LAYOUT.padding;
+    this.viewWidth = width;
+    this.viewHeight = height;
 
-    const panelWidth = Math.min(300, Math.max(190, width * 0.4));
-    this.leftPanel.setPosition(pad, pad).setSize(panelWidth, HUD_LAYOUT.panelHeight);
-    this.scoreText.setPosition(pad + 14, pad + 8);
-    this.objectiveText.setPosition(pad + 14, pad + 34);
+    const s = this.uiScale;
+    const pad = HUD_LAYOUT.padding * s;
+    const objectiveSize = HUD_LAYOUT.objectiveSize * s;
+    const actionSize = HUD_LAYOUT.actionSize * s;
+    const zoomSize = HUD_LAYOUT.zoomButtonSize * s;
 
-    const rightWidth = Math.min(280, Math.max(180, width * 0.38));
-    this.rightPanel.setPosition(width - pad, pad).setSize(rightWidth, HUD_LAYOUT.panelHeight);
-    this.fearText.setPosition(width - pad - 14, pad + 8);
-    this.energyText.setPosition(width - pad - 14, pad + 34);
+    this.objectiveButton.setPosition(pad + objectiveSize / 2, pad + objectiveSize / 2);
+    this.layoutChips();
 
-    const count = Math.max(this.abilityButtons.length, 1);
-    const totalWidth = count * HUD_LAYOUT.abilityWidth + (count - 1) * HUD_LAYOUT.abilityGap;
-    const availableWidth = width - pad * 2;
-    const minScale = HUD_LAYOUT.minTouchPx / HUD_LAYOUT.abilityHeight;
-    const buttonScale = Phaser.Math.Clamp(availableWidth / totalWidth, minScale, 1);
+    // Bottom corner: ghost card, then the square scare grid beside it.
+    const cardRadius = this.card.radius;
+    const cardCenterY = height - pad - Math.max(cardRadius, actionSize / 2);
+    this.card.setPosition(pad + cardRadius, cardCenterY);
 
-    const scaledWidth = HUD_LAYOUT.abilityWidth * buttonScale;
-    const scaledGap = HUD_LAYOUT.abilityGap * buttonScale;
-    const scaledHeight = HUD_LAYOUT.abilityHeight * buttonScale;
-    const rowWidth = count * scaledWidth + (count - 1) * scaledGap;
-    const rowY = height - pad - scaledHeight / 2;
-    let cursorX = (width - rowWidth) / 2 + scaledWidth / 2;
-
-    this.abilityButtons.forEach((button) => {
-      button.setScale(buttonScale).setPosition(cursorX, rowY);
-      cursorX += scaledWidth + scaledGap;
+    const gridStartX = pad + cardRadius * 2 + 14 * s + actionSize / 2;
+    this.actionButtons.forEach((button, index) => {
+      button.setPosition(gridStartX + index * (actionSize + HUD_LAYOUT.actionGap * s), cardCenterY);
     });
 
-    this.abilityBandTop = rowY - scaledHeight / 2 - 8;
-    this.statusText
-      .setPosition(width / 2, this.abilityBandTop - 22)
-      .setWordWrapWidth(Math.max(240, width - pad * 4));
+    this.zoomInButton.setPosition(width - pad - zoomSize / 2, height / 2 - zoomSize * 0.6);
+    this.zoomOutButton.setPosition(width - pad - zoomSize / 2, height / 2 + zoomSize * 0.6);
+
+    this.toast.setWrapWidth(Math.max(200 * s, width * HUD_LAYOUT.toastMaxWidthFraction));
+    this.toast.setPosition(width / 2, cardCenterY - actionSize / 2 - 26 * s);
+
+    this.refreshBlockedRegions();
+  }
+
+  /** Screen regions owned by the HUD, so world taps never fight a control. */
+  blocksPointer(x: number, y: number): boolean {
+    return this.blockedRegions.some((region) => region.contains(x, y));
   }
 
   setStatus(message: string): void {
-    this.statusText.setText(message);
+    this.toast.show(message);
+  }
+
+  setObjective(needsAttention: boolean): void {
+    this.objectiveButton.setNotification(needsAttention);
+  }
+
+  setZoomAvailability(canZoomIn: boolean, canZoomOut: boolean): void {
+    this.zoomInButton.setEnabled(canZoomIn);
+    this.zoomOutButton.setEnabled(canZoomOut);
+  }
+
+  showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
+    const inset = HUD_LAYOUT.padding * this.uiScale + 20 * this.uiScale;
+    this.npcIndicator.pointAt(
+      { x: this.viewWidth / 2, y: this.viewHeight / 2 },
+      target,
+      `Nora · ${Math.round(worldDistance / 10)}m`,
+      {
+        left: inset + 40 * this.uiScale,
+        right: this.viewWidth - inset - 40 * this.uiScale,
+        top: inset + HUD_LAYOUT.chipHeight * this.uiScale,
+        bottom: this.viewHeight - inset - HUD_LAYOUT.actionSize * this.uiScale,
+      },
+    );
+  }
+
+  hideNpcIndicator(): void {
+    this.npcIndicator.hide();
   }
 
   update(snapshot: HudSnapshot): void {
-    this.scoreText.setText(`Score ${snapshot.score}`);
-    this.fearText.setText(`Nora · ${snapshot.stage.toUpperCase()}`);
-    this.energyText.setText(`Fear ${snapshot.fear}/100 · Energy ${snapshot.energy}`);
+    this.scoreChip.setValue(String(snapshot.score));
+    this.energyChip.setValue(String(snapshot.energy));
+    this.fearChip.setValue(`${snapshot.stage.toUpperCase()} ${snapshot.fear}`);
+
+    this.actionButtons.forEach((button) => {
+      button.setAffordable(snapshot.energy >= button.ability.energyCost);
+    });
+
+    this.layoutChips();
+    this.refreshBlockedRegions();
+  }
+
+  private layoutChips(): void {
+    if (this.viewWidth === 0) return;
+
+    const s = this.uiScale;
+    const pad = HUD_LAYOUT.padding * s;
+    const gap = HUD_LAYOUT.chipGap * s;
+    const startX = pad + HUD_LAYOUT.objectiveSize * s + gap;
+    const centerY = pad + HUD_LAYOUT.chipHeight * s / 2;
+
+    let cursorX = startX;
+    for (const chip of [this.scoreChip, this.energyChip, this.fearChip]) {
+      chip.setPosition(cursorX, centerY);
+      cursorX += chip.width + gap;
+    }
+  }
+
+  private refreshBlockedRegions(): void {
+    const s = this.uiScale;
+    const pad = HUD_LAYOUT.padding * s;
+    const touchPad = 6 * s;
+
+    this.blockedRegions.length = 0;
+
+    const chipsWidth = this.scoreChip.width + this.energyChip.width + this.fearChip.width + HUD_LAYOUT.chipGap * s * 3;
+    this.blockedRegions.push(
+      new Phaser.Geom.Rectangle(
+        0,
+        0,
+        pad + HUD_LAYOUT.objectiveSize * s + chipsWidth + touchPad,
+        pad + Math.max(HUD_LAYOUT.objectiveSize, HUD_LAYOUT.chipHeight) * s + touchPad,
+      ),
+    );
+
+    const bottomHeight = Math.max(HUD_LAYOUT.actionSize, HUD_LAYOUT.cardRadius * 2) * s + pad + touchPad;
+    const bottomWidth =
+      pad +
+      this.card.radius * 2 +
+      14 * s +
+      this.actionButtons.length * HUD_LAYOUT.actionSize * s +
+      Math.max(0, this.actionButtons.length - 1) * HUD_LAYOUT.actionGap * s +
+      touchPad;
+    this.blockedRegions.push(
+      new Phaser.Geom.Rectangle(0, this.viewHeight - bottomHeight, bottomWidth, bottomHeight),
+    );
+
+    const zoomWidth = HUD_LAYOUT.zoomButtonSize * s + pad + touchPad;
+    const zoomHeight = HUD_LAYOUT.zoomButtonSize * s * 2.4;
+    this.blockedRegions.push(
+      new Phaser.Geom.Rectangle(
+        this.viewWidth - zoomWidth,
+        this.viewHeight / 2 - zoomHeight / 2,
+        zoomWidth,
+        zoomHeight,
+      ),
+    );
   }
 }

@@ -20,7 +20,7 @@ The current playable room proves the scare loop, but its placeholder geometry an
 
 ### New Capabilities
 - `storybook-hotel-lobby-visuals`: Family-friendly lobby presentation, reusable visual components, lighting, effects, and character animation.
-- `mobile-gameplay-presentation`: Full-bleed camera framing, safe-area-aware floating HUD, touch-sized controls, both-orientation support, and browser-interaction protection.
+- `mobile-gameplay-presentation`: Full-bleed camera framing, safe-area-aware floating HUD, touch-sized controls, landscape play with portrait guidance, and browser-interaction protection.
 
 ### Modified Capabilities
 - `playable-room`: The playable room's presentation and responsive input surface are upgraded while preserving its existing gameplay outcomes and controls.

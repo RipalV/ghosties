@@ -1,12 +1,17 @@
 import Phaser from 'phaser';
-import { PALETTE, ROOM } from '../visuals/lobbyTheme';
+import { CharacterMarker } from '../visuals/CharacterMarker';
+import { PALETTE } from '../visuals/lobbyTheme';
+import { clampToFloor } from '../world/lobbyGeometry';
+import { MOVEMENT } from '../world/lobbyLayout';
 
 export class Ghost extends Phaser.GameObjects.Container {
   private readonly bodyShape: Phaser.GameObjects.Arc;
   private readonly glow: Phaser.GameObjects.Arc;
+  private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly face: Phaser.GameObjects.Text;
+  private readonly marker: CharacterMarker;
   private target = new Phaser.Math.Vector2();
-  private readonly speed = 220;
+  private readonly speed = MOVEMENT.ghostSpeed;
   private keyboardDirection = new Phaser.Math.Vector2();
   private glimpseTween?: Phaser.Tweens.Tween;
   private wasMoving = false;
@@ -14,20 +19,26 @@ export class Ghost extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
 
-    this.glow = scene.add.circle(0, 4, 40, PALETTE.ghostGlow, 0.18);
-    this.bodyShape = scene.add.circle(0, 0, 28, PALETTE.ghostBody, 0.45);
-    this.bodyShape.setStrokeStyle(3, PALETTE.ghostStroke, 0.8);
-    const tail = scene.add.triangle(0, 34, -24, -6, 0, 18, 24, -6, PALETTE.ghostBody, 0.42);
-    tail.setStrokeStyle(3, PALETTE.ghostStroke, 0.75);
+    this.shadow = scene.add.ellipse(0, 42, 52, 20, 0x000000, 0.2);
+    this.glow = scene.add.circle(0, 4, 44, PALETTE.ghostGlow, 0.26);
+    this.bodyShape = scene.add.circle(0, 0, 28, PALETTE.ghostBody, 0.82);
+    this.bodyShape.setStrokeStyle(3, PALETTE.ghostStroke, 0.95);
+    const tail = scene.add.triangle(0, 34, -24, -6, 0, 18, 24, -6, PALETTE.ghostBody, 0.76);
+    tail.setStrokeStyle(3, PALETTE.ghostStroke, 0.9);
     this.face = scene.add.text(0, -2, '•ᴗ•', {
       fontFamily: 'Trebuchet MS',
       fontSize: '21px',
       color: '#203050',
     }).setOrigin(0.5);
 
-    this.add([this.glow, tail, this.bodyShape, this.face]);
+    this.add([this.shadow, this.glow, tail, this.bodyShape, this.face]);
+
+    this.marker = new CharacterMarker(scene, -74, 'HIDDEN', false);
+    this.add(this.marker);
+
     this.setDepth(50);
-    this.setAlpha(0.62);
+    // Slightly see-through: hidden enough to be sneaky, solid enough to read.
+    this.setAlpha(0.78);
     this.target.set(x, y);
     scene.add.existing(this);
 
@@ -40,10 +51,20 @@ export class Ghost extends Phaser.GameObjects.Container {
       repeat: -1,
       ease: 'Sine.InOut',
     });
+
+    scene.tweens.add({
+      targets: [this.bodyShape, this.face],
+      y: '-=5',
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
   }
 
   setTarget(x: number, y: number): void {
-    this.target.set(x, y);
+    const inside = clampToFloor(x, y);
+    this.target.set(inside.x, inside.y);
   }
 
   setKeyboardDirection(x: number, y: number): void {
@@ -57,8 +78,7 @@ export class Ghost extends Phaser.GameObjects.Container {
 
     if (keyboard.lengthSq() > 0) {
       keyboard.normalize().scale(this.speed * seconds);
-      this.x = Phaser.Math.Clamp(this.x + keyboard.x, ROOM.playMinX, ROOM.playMaxX);
-      this.y = Phaser.Math.Clamp(this.y + keyboard.y, ROOM.playMinY, ROOM.playMaxY);
+      this.moveWithinFloor(this.x + keyboard.x, this.y + keyboard.y);
       this.target.set(this.x, this.y);
       moving = true;
     } else {
@@ -66,8 +86,7 @@ export class Ghost extends Phaser.GameObjects.Container {
       const distance = direction.length();
       if (distance >= 5) {
         direction.normalize().scale(Math.min(distance, this.speed * seconds));
-        this.x = Phaser.Math.Clamp(this.x + direction.x, ROOM.playMinX, ROOM.playMaxX);
-        this.y = Phaser.Math.Clamp(this.y + direction.y, ROOM.playMinY, ROOM.playMaxY);
+        this.moveWithinFloor(this.x + direction.x, this.y + direction.y);
         moving = true;
       }
     }
@@ -85,14 +104,18 @@ export class Ghost extends Phaser.GameObjects.Container {
     this.setAlpha(1);
     this.setScale(1.15);
     this.face.setText('⊙﹏⊙');
+    this.marker.setLabel('SEEN!');
 
     this.glimpseTween = this.scene.tweens.add({
       targets: this,
-      alpha: 0.62,
+      alpha: 0.78,
       scale: 1,
       duration: 900,
       ease: 'Sine.Out',
-      onComplete: () => this.face.setText('•ᴗ•'),
+      onComplete: () => {
+        this.face.setText('•ᴗ•');
+        this.marker.setLabel('HIDDEN');
+      },
     });
   }
 
@@ -105,5 +128,11 @@ export class Ghost extends Phaser.GameObjects.Container {
       duration: 220,
       ease: 'Sine.Out',
     });
+  }
+
+  private moveWithinFloor(x: number, y: number): void {
+    const inside = clampToFloor(x, y);
+    this.x = inside.x;
+    this.y = inside.y;
   }
 }

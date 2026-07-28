@@ -1,189 +1,459 @@
 import Phaser from 'phaser';
-import { LOBBY_PROPS, PALETTE, ROOM, type LobbyPropDefinition } from './lobbyTheme';
+import { floorCorners, floorDistance } from '../world/lobbyGeometry';
+import { FLOOR, WALL, WORLD } from '../world/lobbyLayout';
+import {
+  drawContactShadow,
+  drawIsoBox,
+  drawIsoWall,
+  fillIsoDiamond,
+  pointAlongEdge,
+  shadeColor,
+  strokeIsoDiamond,
+} from './isoDraw';
+import {
+  EXTERIOR,
+  LOBBY_PROPS,
+  PALETTE,
+  SHADING,
+  type LobbyPropDefinition,
+} from './lobbyTheme';
 
-/** Draws the static haunted-hotel lobby: walls, floor, furniture, and props. */
+interface EdgePoint {
+  x: number;
+  y: number;
+}
+
+/**
+ * Draws the static lobby: night-time exterior, isometric floor, the two far
+ * cutaway walls, and volumetric furniture. Nothing here carries a text label —
+ * props are recognised by silhouette.
+ */
 export class LobbyEnvironment {
   readonly container: Phaser.GameObjects.Container;
 
+  private readonly left: EdgePoint;
+  private readonly back: EdgePoint;
+  private readonly right: EdgePoint;
+  private readonly front: EdgePoint;
+
   constructor(scene: Phaser.Scene) {
     this.container = scene.add.container(0, 0).setDepth(0);
-    this.drawBackdrop(scene);
-    this.drawWalls(scene);
+
+    const [left, back, right, front] = floorCorners();
+    this.left = left;
+    this.back = back;
+    this.right = right;
+    this.front = front;
+
+    this.drawExterior(scene);
     this.drawFloor(scene);
-    this.drawWindow(scene);
-    for (const prop of LOBBY_PROPS) {
-      this.drawProp(scene, prop);
-    }
+    this.drawWalls(scene);
+    this.drawWallDecor(scene);
+    this.drawProps(scene);
   }
 
-  private drawBackdrop(scene: Phaser.Scene): void {
-    const g = scene.add.graphics();
+  private addGraphics(scene: Phaser.Scene): Phaser.GameObjects.Graphics {
+    const graphics = scene.add.graphics();
+    this.container.add(graphics);
+    return graphics;
+  }
+
+  private drawExterior(scene: Phaser.Scene): void {
+    const g = this.addGraphics(scene);
+
     g.fillStyle(PALETTE.nightSky, 1);
-    g.fillRect(0, 0, ROOM.width, ROOM.artHeight);
-    this.container.add(g);
+    g.fillRect(0, 0, WORLD.width, WORLD.height);
+
+    const lot = {
+      x: FLOOR.centerX,
+      y: FLOOR.centerY,
+      width: FLOOR.halfWidth * 2 * EXTERIOR.lotInset,
+      depth: FLOOR.halfHeight * 2 * EXTERIOR.lotInset,
+    };
+
+    fillIsoDiamond(g, lot, PALETTE.lawn, 1);
+    fillIsoDiamond(
+      g,
+      { x: lot.x, y: lot.y - 40, width: lot.width * 0.7, depth: lot.depth * 0.7 },
+      PALETTE.lawnLight,
+      0.35,
+    );
+
+    // Garden path leading to the lobby entrance at the front corner.
+    for (let step = 0; step < 3; step += 1) {
+      fillIsoDiamond(
+        g,
+        {
+          x: this.front.x,
+          y: this.front.y + 16 + step * 15,
+          width: EXTERIOR.pathWidth - step * 8,
+          depth: 26 - step * 4,
+        },
+        step % 2 === 0 ? PALETTE.path : PALETTE.pathLight,
+        1,
+      );
+    }
+
+    strokeIsoDiamond(g, lot, PALETTE.hedge, EXTERIOR.hedgeThickness, 1);
+    strokeIsoDiamond(g, lot, shadeColor(PALETTE.hedge, 1.3), 3, 0.7);
+
+    this.drawFencePosts(g, lot);
+    EXTERIOR.trees.forEach((tree) => this.drawTree(g, tree.x, tree.y, tree.scale));
   }
 
-  private drawWalls(scene: Phaser.Scene): void {
-    const g = scene.add.graphics();
+  private drawFencePosts(
+    g: Phaser.GameObjects.Graphics,
+    lot: { x: number; y: number; width: number; depth: number },
+  ): void {
+    const corners: EdgePoint[] = [
+      { x: lot.x - lot.width / 2, y: lot.y },
+      { x: lot.x, y: lot.y - lot.depth / 2 },
+      { x: lot.x + lot.width / 2, y: lot.y },
+      { x: lot.x, y: lot.y + lot.depth / 2 },
+    ];
 
-    // Back wall panel
-    g.fillStyle(PALETTE.wall, 1);
-    g.fillRoundedRect(40, 48, 880, 90, 12);
-    g.lineStyle(3, PALETTE.wallTrim, 0.9);
-    g.strokeRoundedRect(40, 48, 880, 90, 12);
+    for (let index = 0; index < corners.length; index += 1) {
+      const from = corners[index];
+      const to = corners[(index + 1) % corners.length];
 
-    // Soft wallpaper diamonds
-    g.lineStyle(1, PALETTE.wallpaperAccent, 0.35);
-    for (let x = 70; x < 900; x += 48) {
-      for (let y = 62; y < 120; y += 28) {
-        g.strokeCircle(x + ((y / 28) % 2) * 12, y, 6);
+      for (let t = 0.06; t < 0.99; t += 0.12) {
+        const point = pointAlongEdge(from, to, t);
+        drawIsoBox(g, {
+          x: point.x,
+          y: point.y,
+          width: 12,
+          depth: 8,
+          height: 26,
+          color: PALETTE.fence,
+        });
       }
     }
+  }
 
-    // Side walls
-    g.fillStyle(PALETTE.wall, 1);
-    g.fillRoundedRect(28, 130, 48, 340, 10);
-    g.fillRoundedRect(884, 130, 48, 340, 10);
-    g.lineStyle(3, PALETTE.wallTrim, 0.85);
-    g.strokeRoundedRect(28, 130, 48, 340, 10);
-    g.strokeRoundedRect(884, 130, 48, 340, 10);
+  private drawTree(g: Phaser.GameObjects.Graphics, x: number, y: number, scale: number): void {
+    drawContactShadow(g, { x, y, width: 74 * scale, depth: 30 * scale }, 1);
 
-    // Baseboards
-    g.fillStyle(PALETTE.wood, 1);
-    g.fillRect(76, 455, 808, 14);
-    g.lineStyle(2, PALETTE.woodLight, 0.7);
-    g.strokeRect(76, 455, 808, 14);
+    drawIsoBox(g, {
+      x,
+      y,
+      width: 16 * scale,
+      depth: 10 * scale,
+      height: 34 * scale,
+      color: PALETTE.treeTrunk,
+    });
 
-    this.container.add(g);
+    for (let tier = 0; tier < 3; tier += 1) {
+      const lift = 34 * scale + tier * 30 * scale;
+      const width = (86 - tier * 22) * scale;
+      fillIsoDiamond(
+        g,
+        { x, y, width, depth: width * 0.45 },
+        tier % 2 === 0 ? PALETTE.treeDark : PALETTE.treeLight,
+        1,
+        lift,
+      );
+    }
   }
 
   private drawFloor(scene: Phaser.Scene): void {
-    const g = scene.add.graphics();
-    const tileWidth = 78;
-    const tileHeight = 38;
+    const g = this.addGraphics(scene);
+    const floor = {
+      x: FLOOR.centerX,
+      y: FLOOR.centerY,
+      width: FLOOR.halfWidth * 2,
+      depth: FLOOR.halfHeight * 2,
+    };
 
-    for (let row = -1; row < 11; row += 1) {
-      for (let column = -2; column < 14; column += 1) {
-        const x = 480 + (column - row) * (tileWidth / 2);
-        const y = 118 + (column + row) * (tileHeight / 2);
-        if (y < 112 || y > 460 || x < 70 || x > 890) continue;
+    fillIsoDiamond(g, floor, PALETTE.floorDark, 1);
 
-        const light = (row + column) % 2 === 0;
-        g.fillStyle(light ? PALETTE.floorLight : PALETTE.floorDark, 1);
-        g.lineStyle(1, PALETTE.floorLine, 0.55);
-        g.beginPath();
-        g.moveTo(x, y - tileHeight / 2);
-        g.lineTo(x + tileWidth / 2, y);
-        g.lineTo(x, y + tileHeight / 2);
-        g.lineTo(x - tileWidth / 2, y);
-        g.closePath();
-        g.fillPath();
-        g.strokePath();
+    const halfTileWidth = FLOOR.tileWidth / 2;
+    const halfTileHeight = FLOOR.tileHeight / 2;
+    const span = Math.ceil(FLOOR.halfWidth / halfTileWidth) + 2;
+
+    for (let row = -span; row <= span; row += 1) {
+      for (let column = -span; column <= span; column += 1) {
+        const x = FLOOR.centerX + (column - row) * halfTileWidth;
+        const y = FLOOR.centerY + (column + row) * halfTileHeight;
+        if (floorDistance(x, y) > 0.97) continue;
+
+        fillIsoDiamond(
+          g,
+          { x, y, width: FLOOR.tileWidth - 3, depth: FLOOR.tileHeight - 2 },
+          (row + column) % 2 === 0 ? PALETTE.floorLight : PALETTE.floorDark,
+          1,
+        );
       }
     }
 
-    this.container.add(g);
+    strokeIsoDiamond(g, floor, PALETTE.floorLine, 3, 0.8);
   }
 
-  private drawWindow(scene: Phaser.Scene): void {
-    const g = scene.add.graphics();
-    const wx = 470;
-    const wy = 78;
+  private drawWalls(scene: Phaser.Scene): void {
+    const g = this.addGraphics(scene);
 
-    g.fillStyle(PALETTE.moonlight, 0.22);
-    g.fillRoundedRect(wx - 70, wy - 28, 140, 52, 8);
-    g.lineStyle(3, PALETTE.wallTrim, 0.95);
-    g.strokeRoundedRect(wx - 70, wy - 28, 140, 52, 8);
-    g.lineStyle(2, PALETTE.moonlight, 0.5);
-    g.lineBetween(wx, wy - 28, wx, wy + 24);
-    g.lineBetween(wx - 70, wy, wx + 70, wy);
+    // Only the two far walls are drawn, so nothing hides behind a near wall.
+    drawIsoWall(g, this.left, this.back, WALL.height, PALETTE.wallLeft);
+    drawIsoWall(g, this.back, this.right, WALL.height, PALETTE.wallRight);
 
-    // Moon disc
-    g.fillStyle(0xf0f4ff, 0.85);
-    g.fillCircle(wx + 28, wy - 6, 10);
-    g.fillStyle(PALETTE.nightSky, 0.35);
-    g.fillCircle(wx + 32, wy - 8, 7);
+    this.drawWallpaper(g, this.left, this.back, PALETTE.wallLeft);
+    this.drawWallpaper(g, this.back, this.right, PALETTE.wallRight);
 
-    this.container.add(g);
+    // Top trim and baseboards give each wall a readable thickness.
+    g.lineStyle(4, PALETTE.wallTrim, 0.95);
+    g.beginPath();
+    g.moveTo(this.left.x, this.left.y - WALL.height);
+    g.lineTo(this.back.x, this.back.y - WALL.height);
+    g.lineTo(this.right.x, this.right.y - WALL.height);
+    g.strokePath();
+
+    this.drawWallBand(g, this.left, this.back, 0, WALL.baseboardHeight, PALETTE.baseboard);
+    this.drawWallBand(g, this.back, this.right, 0, WALL.baseboardHeight, shadeColor(PALETTE.baseboard, SHADING.right));
   }
 
-  private drawProp(scene: Phaser.Scene, prop: LobbyPropDefinition): void {
-    const g = scene.add.graphics();
+  private drawWallpaper(
+    g: Phaser.GameObjects.Graphics,
+    from: EdgePoint,
+    to: EdgePoint,
+    base: number,
+  ): void {
+    g.fillStyle(shadeColor(base, 1.35), 0.3);
+    for (let t = 0.05; t < 0.98; t += 0.055) {
+      const point = pointAlongEdge(from, to, t);
+      for (let level = 0; level < 3; level += 1) {
+        const lift = 34 + level * 38;
+        g.fillCircle(point.x, point.y - lift, 5);
+      }
+    }
+  }
+
+  /** Fills a horizontal band across a wall, following the wall's isometric skew. */
+  private drawWallBand(
+    g: Phaser.GameObjects.Graphics,
+    from: EdgePoint,
+    to: EdgePoint,
+    lift: number,
+    thickness: number,
+    color: number,
+  ): void {
+    g.fillStyle(color, 1);
+    g.beginPath();
+    g.moveTo(from.x, from.y - lift);
+    g.lineTo(to.x, to.y - lift);
+    g.lineTo(to.x, to.y - lift - thickness);
+    g.lineTo(from.x, from.y - lift - thickness);
+    g.closePath();
+    g.fillPath();
+  }
+
+  /** Draws a rectangle that sits flat on a wall, skewed to match it. */
+  private drawWallPanel(
+    g: Phaser.GameObjects.Graphics,
+    from: EdgePoint,
+    to: EdgePoint,
+    t: number,
+    along: number,
+    height: number,
+    lift: number,
+    color: number,
+    alpha = 1,
+  ): { start: EdgePoint; end: EdgePoint } {
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    const halfSpan = along / 2 / length;
+    const start = pointAlongEdge(from, to, t - halfSpan);
+    const end = pointAlongEdge(from, to, t + halfSpan);
+
+    g.fillStyle(color, alpha);
+    g.beginPath();
+    g.moveTo(start.x, start.y - lift);
+    g.lineTo(end.x, end.y - lift);
+    g.lineTo(end.x, end.y - lift - height);
+    g.lineTo(start.x, start.y - lift - height);
+    g.closePath();
+    g.fillPath();
+
+    return { start, end };
+  }
+
+  private drawWallDecor(scene: Phaser.Scene): void {
+    const g = this.addGraphics(scene);
+
+    // Framed painting on the left wall.
+    const frame = this.drawWallPanel(g, this.left, this.back, 0.45, 150, 84, 46, PALETTE.wood);
+    this.drawWallPanel(g, this.left, this.back, 0.45, 132, 68, 54, 0x2a1f40);
+    this.drawWallPanel(g, this.left, this.back, 0.42, 60, 34, 70, PALETTE.moonlight, 0.3);
+    g.lineStyle(2, PALETTE.woodLight, 0.8);
+    g.strokeLineShape(
+      new Phaser.Geom.Line(frame.start.x, frame.start.y - 46, frame.end.x, frame.end.y - 46),
+    );
+
+    // Moonlit window on the right wall.
+    this.drawWallPanel(g, this.back, this.right, 0.5, 190, 100, 44, PALETTE.wood);
+    const pane = this.drawWallPanel(g, this.back, this.right, 0.5, 172, 84, 52, PALETTE.moonlight, 0.28);
+    g.fillStyle(PALETTE.moon, 0.85);
+    g.fillCircle((pane.start.x + pane.end.x) / 2 + 34, (pane.start.y + pane.end.y) / 2 - 104, 13);
+    g.fillStyle(PALETTE.moonlight, 0.5);
+    g.lineStyle(3, PALETTE.wallTrim, 0.9);
+    g.strokeLineShape(
+      new Phaser.Geom.Line(
+        (pane.start.x + pane.end.x) / 2,
+        (pane.start.y + pane.end.y) / 2 - 52,
+        (pane.start.x + pane.end.x) / 2,
+        (pane.start.y + pane.end.y) / 2 - 136,
+      ),
+    );
+
+    // Wall sconces, one per wall.
+    this.drawSconce(g, pointAlongEdge(this.left, this.back, 0.16), 96);
+    this.drawSconce(g, pointAlongEdge(this.back, this.right, 0.84), 96);
+  }
+
+  private drawSconce(g: Phaser.GameObjects.Graphics, at: EdgePoint, lift: number): void {
+    g.fillStyle(PALETTE.brass, 1);
+    g.fillRect(at.x - 3, at.y - lift, 6, 16);
+
+    // A shade that widens downward, so it reads as a wall light.
+    g.fillStyle(PALETTE.lampWarm, 0.95);
+    g.beginPath();
+    g.moveTo(at.x - 9, at.y - lift - 18);
+    g.lineTo(at.x + 9, at.y - lift - 18);
+    g.lineTo(at.x + 17, at.y - lift + 2);
+    g.lineTo(at.x - 17, at.y - lift + 2);
+    g.closePath();
+    g.fillPath();
+
+    g.fillStyle(PALETTE.lampWarm, 0.16);
+    g.fillEllipse(at.x, at.y - lift + 24, 60, 44);
+  }
+
+  private drawProps(scene: Phaser.Scene): void {
+    const ordered = [...LOBBY_PROPS].sort((a, b) => a.y - b.y);
+    for (const prop of ordered) {
+      this.drawProp(this.addGraphics(scene), prop);
+    }
+  }
+
+  private drawProp(g: Phaser.GameObjects.Graphics, prop: LobbyPropDefinition): void {
     const { x, y } = prop;
 
     switch (prop.kind) {
-      case 'sofa':
-        g.fillStyle(PALETTE.sofa, 1);
-        g.fillRoundedRect(x - 58, y - 22, 116, 44, 12);
-        g.fillRoundedRect(x - 58, y - 34, 28, 24, 8);
-        g.fillRoundedRect(x + 30, y - 34, 28, 24, 8);
-        g.lineStyle(3, PALETTE.sofaTrim, 0.95);
-        g.strokeRoundedRect(x - 58, y - 22, 116, 44, 12);
+      case 'rug':
+        fillIsoDiamond(g, { x, y, width: 300, depth: 140 }, PALETTE.rug, 0.9);
+        strokeIsoDiamond(g, { x, y, width: 300, depth: 140 }, PALETTE.rugTrim, 4, 0.8);
+        strokeIsoDiamond(g, { x, y, width: 230, depth: 106 }, PALETTE.rugTrim, 2, 0.5);
         break;
-      case 'piano':
-        g.fillStyle(PALETTE.piano, 1);
-        g.fillRoundedRect(x - 68, y - 26, 136, 52, 8);
-        g.fillStyle(PALETTE.pianoKeys, 1);
-        g.fillRoundedRect(x - 52, y - 4, 104, 18, 4);
-        g.lineStyle(2, PALETTE.wallTrim, 0.9);
-        g.strokeRoundedRect(x - 68, y - 26, 136, 52, 8);
-        break;
-      case 'chair':
-        g.fillStyle(PALETTE.chair, 1);
-        g.fillRoundedRect(x - 34, y - 18, 68, 40, 8);
-        g.fillRoundedRect(x - 34, y - 36, 68, 18, 6);
-        g.lineStyle(2, 0xa98e91, 0.9);
-        g.strokeRoundedRect(x - 34, y - 18, 68, 40, 8);
-        break;
+
       case 'reception':
-        g.fillStyle(PALETTE.reception, 1);
-        g.fillRoundedRect(x - 62, y - 22, 124, 48, 8);
-        g.fillStyle(PALETTE.woodLight, 1);
-        g.fillRect(x - 50, y - 8, 100, 8);
-        g.lineStyle(3, PALETTE.receptionTrim, 0.95);
-        g.strokeRoundedRect(x - 62, y - 22, 124, 48, 8);
+        drawContactShadow(g, { x, y, width: 200, depth: 96 });
+        drawIsoBox(g, { x, y, width: 190, depth: 92, height: 58, color: PALETTE.reception });
+        drawIsoBox(g, { x, y, width: 206, depth: 100, height: 10, color: PALETTE.woodLight });
+        // Guest bell and a ledger, so the counter reads as a reception desk.
+        drawIsoBox(g, { x: x + 52, y: y - 62, width: 26, depth: 16, height: 8, color: PALETTE.brass });
+        g.fillStyle(PALETTE.brass, 1);
+        g.fillCircle(x + 52, y - 76, 9);
+        drawIsoBox(g, { x: x - 44, y: y - 62, width: 44, depth: 26, height: 6, color: PALETTE.pianoKeys });
         break;
-      case 'lamp':
-        g.fillStyle(PALETTE.wood, 1);
-        g.fillRect(x - 4, y - 8, 8, 36);
-        g.fillStyle(PALETTE.lampWarm, 0.95);
-        g.fillTriangle(x - 18, y - 8, x + 18, y - 8, x, y - 36);
-        g.lineStyle(2, 0xffe0a0, 0.7);
-        g.strokeTriangle(x - 18, y - 8, x + 18, y - 8, x, y - 36);
+
+      case 'sofa':
+        drawContactShadow(g, { x, y, width: 186, depth: 92 });
+        drawIsoBox(g, { x, y, width: 176, depth: 84, height: 22, color: PALETTE.sofa });
+        // Backrest sits behind the seat so the silhouette reads as a couch.
+        drawIsoBox(g, { x: x - 12, y: y - 30, width: 150, depth: 46, height: 52, color: shadeColor(PALETTE.sofa, 0.86) });
+        drawIsoBox(g, { x: x - 68, y: y + 4, width: 38, depth: 30, height: 36, color: PALETTE.sofa });
+        drawIsoBox(g, { x: x + 68, y: y + 4, width: 38, depth: 30, height: 36, color: PALETTE.sofa });
+        fillIsoDiamond(g, { x: x - 30, y: y - 6, width: 62, depth: 30 }, shadeColor(PALETTE.sofa, 1.25), 0.9, 22);
+        fillIsoDiamond(g, { x: x + 26, y: y + 6, width: 62, depth: 30 }, shadeColor(PALETTE.sofa, 1.25), 0.9, 22);
         break;
+
+      case 'armchair':
+        drawContactShadow(g, { x, y, width: 104, depth: 62 });
+        drawIsoBox(g, { x, y, width: 104, depth: 62, height: 30, color: PALETTE.chair });
+        drawIsoBox(g, { x: x - 4, y: y - 18, width: 84, depth: 40, height: 44, color: shadeColor(PALETTE.chair, 0.9) });
+        break;
+
+      case 'piano':
+        drawContactShadow(g, { x, y, width: 210, depth: 110 });
+        drawIsoBox(g, { x, y, width: 196, depth: 100, height: 72, color: PALETTE.piano });
+        // Raised lid, then the keyboard along the near-right edge.
+        fillIsoDiamond(g, { x: x - 10, y: y - 16, width: 176, depth: 88 }, shadeColor(PALETTE.piano, 1.35), 1, 84);
+        drawIsoBox(g, {
+          x: x + 38,
+          y: y + 26,
+          width: 96,
+          depth: 44,
+          height: 10,
+          color: PALETTE.pianoKeys,
+          topColor: PALETTE.pianoKeys,
+        });
+        g.lineStyle(2, shadeColor(PALETTE.piano, 0.7), 0.9);
+        for (let key = -3; key <= 3; key += 1) {
+          g.strokeLineShape(
+            new Phaser.Geom.Line(x + 38 + key * 11, y + 16 - key * 5, x + 38 + key * 11 + 20, y + 26 - key * 5),
+          );
+        }
+        drawIsoBox(g, { x: x + 22, y: y + 74, width: 66, depth: 32, height: 26, color: PALETTE.wood });
+        break;
+
+      case 'table':
+        drawContactShadow(g, { x, y, width: 118, depth: 62 });
+        drawIsoBox(g, { x, y, width: 40, depth: 24, height: 34, color: PALETTE.wood });
+        drawIsoBox(g, { x, y: y - 34, width: 118, depth: 62, height: 10, color: PALETTE.woodLight });
+        break;
+
+      case 'clock':
+        drawContactShadow(g, { x, y, width: 60, depth: 34 });
+        drawIsoBox(g, { x, y, width: 56, depth: 32, height: 128, color: PALETTE.clock });
+        g.fillStyle(PALETTE.pianoKeys, 0.92);
+        g.fillCircle(x, y - 118, 17);
+        g.lineStyle(3, PALETTE.clock, 1);
+        g.strokeLineShape(new Phaser.Geom.Line(x, y - 118, x, y - 128));
+        g.strokeLineShape(new Phaser.Geom.Line(x, y - 118, x + 9, y - 116));
+        break;
+
+      case 'trolley':
+        drawContactShadow(g, { x, y, width: 96, depth: 56 });
+        drawIsoBox(g, { x, y, width: 96, depth: 56, height: 16, color: PALETTE.trolley });
+        drawIsoBox(g, { x: x - 8, y: y - 16, width: 74, depth: 44, height: 34, color: PALETTE.wood });
+        drawIsoBox(g, { x: x + 4, y: y - 50, width: 58, depth: 34, height: 26, color: shadeColor(PALETTE.wood, 1.1) });
+        drawIsoBox(g, { x: x + 40, y: y - 12, width: 8, depth: 8, height: 78, color: PALETTE.brass });
+        break;
+
       case 'plant':
-        g.fillStyle(PALETTE.wood, 1);
-        g.fillRoundedRect(x - 14, y + 8, 28, 18, 4);
-        g.fillStyle(0x4e8a5a, 1);
-        g.fillCircle(x, y - 6, 16);
-        g.fillCircle(x - 12, y + 2, 10);
-        g.fillCircle(x + 12, y + 2, 10);
+        drawContactShadow(g, { x, y, width: 64, depth: 34 });
+        drawIsoBox(g, { x, y, width: 56, depth: 32, height: 36, color: PALETTE.plantPot });
+        for (let tier = 0; tier < 3; tier += 1) {
+          fillIsoDiamond(
+            g,
+            { x, y, width: 92 - tier * 20, depth: (92 - tier * 20) * 0.45 },
+            tier % 2 === 0 ? PALETTE.plantLeaf : shadeColor(PALETTE.plantLeaf, 0.82),
+            1,
+            40 + tier * 24,
+          );
+        }
         break;
-      case 'painting':
-        g.fillStyle(0x2a1f40, 1);
-        g.fillRoundedRect(x - 36, y - 22, 72, 40, 4);
-        g.lineStyle(3, PALETTE.woodLight, 0.9);
-        g.strokeRoundedRect(x - 36, y - 22, 72, 40, 4);
-        g.fillStyle(PALETTE.moonlight, 0.35);
-        g.fillCircle(x + 8, y - 6, 8);
-        g.fillStyle(0x6a8a5a, 0.5);
-        g.fillTriangle(x - 20, y + 10, x - 4, y - 8, x + 12, y + 10);
+
+      case 'lamp': {
+        drawContactShadow(g, { x, y, width: 52, depth: 28 });
+        drawIsoBox(g, { x, y, width: 40, depth: 24, height: 8, color: PALETTE.brass });
+        drawIsoBox(g, { x, y: y - 8, width: 7, depth: 7, height: 74, color: PALETTE.brass });
+
+        // A tapered shade, wider at the bottom, so the lamp is not a spike.
+        const shadeBottom = y - 82;
+        const shadeTop = shadeBottom - 34;
+        g.fillStyle(PALETTE.lampWarm, 0.95);
+        g.beginPath();
+        g.moveTo(x - 30, shadeBottom);
+        g.lineTo(x + 30, shadeBottom);
+        g.lineTo(x + 19, shadeTop);
+        g.lineTo(x - 19, shadeTop);
+        g.closePath();
+        g.fillPath();
+        fillIsoDiamond(g, { x, y: shadeTop, width: 38, depth: 17 }, shadeColor(PALETTE.lampWarm, 1.12), 1);
+        fillIsoDiamond(g, { x, y: shadeBottom, width: 60, depth: 27 }, shadeColor(PALETTE.lampWarm, 0.78), 1);
         break;
+      }
+
       default:
         break;
-    }
-
-    this.container.add(g);
-
-    if (prop.label) {
-      const label = scene.add.text(x, y + 28, prop.label, {
-        fontFamily: 'Trebuchet MS',
-        fontSize: '13px',
-        color: '#f6d6ab',
-        backgroundColor: '#2a1a38aa',
-        padding: { x: 6, y: 2 },
-      }).setOrigin(0.5);
-      this.container.add(label);
     }
   }
 }
