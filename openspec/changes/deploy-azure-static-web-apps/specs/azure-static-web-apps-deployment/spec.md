@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Production deploys from main to Azure Static Web Apps
-The project SHALL deploy the built Vite `dist` output to Azure Static Web Apps automatically when changes are pushed to the `main` branch, after successful validation and build with Node.js 22.
+The project SHALL deploy the built Vite `dist` output to the production Azure Static Web Apps site only when changes are pushed to the `main` branch (or when `workflow_dispatch` runs on `main`), after successful validation and build with Node.js 22. Pull requests and non-`main` refs MUST NOT update production.
 
 #### Scenario: Push to main deploys production
 - **WHEN** a commit is pushed to `main`
@@ -12,8 +12,14 @@ The project SHALL deploy the built Vite `dist` output to Azure Static Web Apps a
 - **AND** the production Azure Static Web Apps site is updated
 
 #### Scenario: Manual production redeploy
-- **WHEN** a maintainer triggers the deployment workflow manually from GitHub Actions
+- **WHEN** a maintainer triggers the deployment workflow manually from GitHub Actions on the `main` branch
 - **THEN** the same validation, build, and Azure Static Web Apps upload path runs for production
+
+#### Scenario: Production path is main-only
+- **WHEN** a pull request targets `main`, or the workflow runs on any ref other than `refs/heads/main`
+- **THEN** Terraform apply against production infrastructure does not run
+- **AND** the production Azure Static Web Apps site is not updated
+- **AND** pull requests MAY still create or update a separate preview environment only
 
 ### Requirement: Terraform creates required Azure resources
 The project SHALL include Terraform configuration that creates Azure resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` in region `uksouth` with Free SKU, using committed non-secret variable values (no `terraform.tfvars.example` workflow).
@@ -36,10 +42,10 @@ The deployment pipeline MUST initialise Terraform against Azure Storage state in
 The deployment pipeline MUST run Terraform against Azure subscription `9b624e2f-8326-44e6-953d-b251af487227` (via OIDC / `AZURE_SUBSCRIPTION_ID`) as part of production deployment so required resources are created or updated before the application package is uploaded.
 
 #### Scenario: Main branch applies infrastructure then deploys
-- **WHEN** a push to `main` or a manual production workflow dispatch runs the deployment pipeline
+- **WHEN** a push to `main` or a manual workflow dispatch on `main` runs the deployment pipeline
 - **THEN** the pipeline authenticates to Azure with OIDC using GitHub secrets (including tenant `62aa5204-8b12-4ee2-aaee-38615e81bf68` via `AZURE_TENANT_ID`)
 - **AND** runs Terraform to apply (or equivalently ensure) the required Azure resources
-- **AND** only after successful infrastructure provisioning continues to build and upload `dist` to Azure Static Web Apps
+- **AND** only after successful infrastructure provisioning continues to build and upload `dist` to the production Azure Static Web Apps site
 
 #### Scenario: Pull request plans infrastructure without mutating production
 - **WHEN** a pull request targeting `main` is opened or updated

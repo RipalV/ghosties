@@ -119,8 +119,8 @@ Copy the deployment token into the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKE
 
 The workflow `.github/workflows/deploy-azure-static-web-apps.yml`:
 
-- On `main` push and manual `workflow_dispatch`: Azure OIDC login → `terraform apply` → Node 22 `npm ci` / `npm run check` / `npm run build` → upload existing `dist` (no rebuild inside the Azure action)
-- On pull requests targeting `main`: `terraform plan` (no apply) → same build → Azure preview environment
+- **Production (main only):** On push to `main` or manual `workflow_dispatch` while on `main`: Azure OIDC login → `terraform apply` → Node 22 `npm ci` / `npm run check` / `npm run build` → upload existing `dist` to production (no rebuild inside the Azure action). Production Terraform apply and production deploy never run for pull requests or non-`main` branches.
+- **Pull request preview:** On PRs targeting `main`: `terraform plan` (no apply) → same build → Azure **preview** environment only
 - On pull request close: closes the Azure preview environment
 - Fails before upload if Terraform apply (production path), `npm ci`, `npm run check`, or the Vite build fails
 
@@ -133,7 +133,7 @@ The workflow `.github/workflows/deploy-azure-static-web-apps.yml`:
 
 1. Open the repository on GitHub → **Actions**.
 2. Select **Deploy Ghosties to Azure Static Web Apps**.
-3. Click **Run workflow**, choose the `main` branch, and run it.
+3. Click **Run workflow**, choose the **`main`** branch, and run it. Running the workflow from any other branch does not deploy production.
 
 ## Cursor and OpenSpec
 

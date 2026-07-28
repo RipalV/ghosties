@@ -52,3 +52,9 @@
 - [x] 8.4 Hard-code Terraform backend init to `rg-uks-foundation` / `stripalterraformproduks` / `tfstate-ghosties` / `ghosties.tfstate` (remove `TF_STATE_*` variable placeholders)
 - [x] 8.5 Update README with fixed resource names, state backend, and OIDC secret setup for subscription `9b624e2f-8326-44e6-953d-b251af487227` and tenant `62aa5204-8b12-4ee2-aaee-38615e81bf68`
 - [x] 8.6 Re-run `npm run check` and confirm no client secrets, deployment tokens, or state files are committed
+
+## 9. Production path main-only gating
+
+- [x] 9.1 Gate Terraform apply and production deploy jobs on `refs/heads/main` (push or workflow_dispatch); keep PR plan + preview deploy separate
+- [x] 9.2 Document main-only production deploy and manual redeploy branch requirement in README
+- [x] 9.3 Update OpenSpec delta spec/design for production-path main-only scenarios

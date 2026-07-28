@@ -63,7 +63,13 @@ Operators provided concrete Azure production details. The plan now locks those v
 - **Why:** Matches confirmed OIDC approach; avoids treating auth material as Terraform input while still specifying the target subscription.
 - **Alternatives considered:** Hard-code IDs in `provider "azurerm"` — unnecessary when OIDC login already scopes the subscription.
 
-### 4–7. Prior decisions retained
+### 4. Production deploy and apply are main-only
+
+- **Decision:** Gate `terraform apply` and the production upload job on `github.ref == 'refs/heads/main'` for `push` and `workflow_dispatch`. Keep PR path as `terraform plan` + preview upload only (separate job). Push triggers remain limited to `main`.
+- **Why:** Prevents accidental production Terraform apply or production SWA upload from PRs or `workflow_dispatch` on non-main branches.
+- **Alternatives considered:** Rely on push branch filter alone — insufficient for `workflow_dispatch` from other branches.
+
+### 5–7. Prior decisions retained
 
 - Terraform owns RG + SWA; pipeline apply on main / plan on PR; SWA token via `AZURE_STATIC_WEB_APPS_API_TOKEN`; no gameplay changes.
 
