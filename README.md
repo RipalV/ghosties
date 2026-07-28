@@ -1,4 +1,4 @@
-# Project Boo
+# Project Ghosties
 
 A browser-first scaffold for a family-friendly ghost haunting game. The working game title is **Boo & Behold!**.
 
@@ -15,14 +15,30 @@ Players control a mischievous ghost, observe NPC behaviour, discover hidden fear
 
 ## Run locally
 
-Prerequisites: Node.js 20.19 or newer.
+Prerequisites: Node.js 20.19 or newer. The repo includes an `.nvmrc` file pinned to Node 22 (matching CI).
+
+### Using nvm (recommended)
+
+Install [nvm](https://github.com/nvm-sh/nvm) if you do not already have it:
 
 ```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+```
+
+Restart your terminal, then from the repository root:
+
+```bash
+nvm install   # reads .nvmrc
+nvm use
 npm install
 npm run dev
 ```
 
 Open the local address printed by Vite.
+
+### Without nvm
+
+Install Node.js 20.19 or newer from [nodejs.org](https://nodejs.org/), then run `npm install` and `npm run dev` as above.
 
 ## Controls
 
@@ -40,11 +56,16 @@ npm run check
 
 ## Cursor and OpenSpec
 
-Open the repository in Cursor, then initialise or refresh OpenSpec integration:
+Open the repository in Cursor, then run the setup script to install OpenSpec with the [expanded/full workflow](https://github.com/Fission-AI/OpenSpec/blob/main/docs/workflows.md#expandedfull-workflow-custom-selection) for Cursor (`propose`, `explore`, `new`, `continue`, `apply`, `update`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`):
 
 ```bash
-npm install
-npx openspec init --tools cursor --force
+./setup-openspec.sh
+```
+
+Or use the npm script:
+
+```bash
+npm run setup:openspec
 ```
 
 Start in Cursor chat with:
@@ -70,9 +91,9 @@ The first milestone is successful when a player can explain:
 
 ## Repository naming
 
-Recommended repository name: `project-boo`
+Recommended repository name: `ghosties`
 
-Working game title: **Boo & Behold!**
+Working game title: **Ghosties**
 
 Names are working titles only and require proper trademark and store-name clearance before commercial release.
 

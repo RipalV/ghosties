@@ -138,7 +138,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createHeader(): void {
-    this.add.text(38, 22, 'PROJECT BOO', {
+    this.add.text(38, 22, 'PROJECT GHOSTIES', {
       fontFamily: 'Trebuchet MS',
       fontSize: '30px',
       color: '#ffffff',

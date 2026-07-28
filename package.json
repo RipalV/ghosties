@@ -1,5 +1,5 @@
 {
-  "name": "project-boo",
+  "name": "project-ghosties",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,8 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run test && npm run build",
-    "openspec:init": "openspec init --tools cursor --force",
-    "openspec:update": "openspec update"
+    "setup:openspec": "bash setup-openspec.sh",
+    "openspec:init": "openspec init --tools cursor --force --profile custom",
+    "openspec:update": "openspec update --force"
   },
   "dependencies": {
     "phaser": "^4.2.1"

@@ -1,6 +1,6 @@
 schema: spec-driven
 context: |
-  Project Boo is a browser-first, family-friendly game for players aged 7+.
+  Project Ghosties is a browser-first, family-friendly game for players aged 7+.
   Players control invisible mischievous ghosts and discover NPC fears through
   observation, clues, dialogue, and experimentation. The game avoids death,
   injury, combat, violence, and open chat. The prototype uses Phaser,

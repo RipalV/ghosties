@@ -7,3 +7,7 @@ coverage/
 .DS_Store
 *.log
 .vite/
+
+# OpenSpec-generated Cursor integration (recreated by setup-openspec.sh)
+.cursor/commands/opsx-*
+.cursor/skills/openspec-*
