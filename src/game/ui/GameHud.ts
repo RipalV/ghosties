@@ -152,13 +152,16 @@ export class GameHud {
 
   showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
     const inset = HUD_LAYOUT.padding * this.uiScale + 20 * this.uiScale;
+    // Nora is usually to one side, so the right edge is where the indicator
+    // parks most often — the zoom column is kept clear of it.
+    const zoomColumn = (HUD_LAYOUT.zoomButtonSize + HUD_LAYOUT.padding) * this.uiScale;
     this.npcIndicator.pointAt(
       { x: this.viewWidth / 2, y: this.viewHeight / 2 },
       target,
       `Nora · ${Math.round(worldDistance / 10)}m`,
       {
         left: inset + 40 * this.uiScale,
-        right: this.viewWidth - inset - 40 * this.uiScale,
+        right: this.viewWidth - inset - 40 * this.uiScale - zoomColumn,
         top: inset + HUD_LAYOUT.chipHeight * this.uiScale,
         bottom: this.viewHeight - inset - HUD_LAYOUT.actionSize * this.uiScale,
       },

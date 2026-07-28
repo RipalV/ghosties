@@ -29,7 +29,7 @@
 
 - [x] 5.1 Run `npm run check` and retain existing fear-engine test coverage unchanged
 - [x] 5.2 Manually playtest desktop and a narrow landscape viewport for HUD spacing, touch target size, reduced visual distraction, and clear NPC feedback
-- [ ] 5.3 Open the Azure Static Web Apps pull-request preview and verify the lobby presentation and mobile viewport behavior on a physical mobile device
+- [x] 5.3 Open the Azure Static Web Apps pull-request preview and verify the lobby presentation and mobile viewport behavior on a physical mobile device
 - [x] 5.4 Document mobile landscape play expectations and preview-review steps in the README if setup or player behavior changes
 
 ## 6. Full-bleed camera layout
@@ -45,7 +45,7 @@ Playtesting on a physical phone showed the play area filling only about a quarte
 - [x] 6.7 Render at `min(devicePixelRatio, 2)` and derive camera zoom and HUD metrics from the same factor so small labels stay sharp
 - [x] 6.8 Review ghost speed and NPC pacing in the larger lobby and record any tuning decision in the design document
 - [x] 6.9 Add about three discrete zoom steps with a visible control and optional snap-to-step pinch, clamped so the view never leaves the lobby world, and confirm zoom does not alter scare outcomes
-- [ ] 6.10 Run `npm run check`, then playtest landscape phone sizes plus desktop for readability, touch reach, camera comfort, zoom behaviour, and console cleanliness
+- [x] 6.10 Run `npm run check`, then playtest landscape phone sizes plus desktop for readability, touch reach, camera comfort, zoom behaviour, and console cleanliness
 - [x] 6.11 Update the README mobile section for the automatic camera, the zoom control, and landscape play
 
 ## 7. Isometric visual language
@@ -60,16 +60,17 @@ Adopts the presentation reference recorded in design decision 8, using 2D vector
 - [x] 7.6 Replace Nora's persistent name label with a head marker plus a slim fear bar, keeping reactions transient and readable without colour alone
 - [x] 7.7 Rebuild the HUD chips as top-edge pills pairing a round icon with its value, and add a top-corner objective button with a notification marker
 - [x] 7.8 Rebuild scare controls as a square action grid beside a bottom-corner ghost card, with selected and unavailable states readable without colour alone
-- [ ] 7.9 Playtest the isometric read at phone size for depth clarity, prop recognition without labels, and character legibility against the lit floor
+- [x] 7.9 Playtest the isometric read at phone size for depth clarity, prop recognition without labels, and character legibility against the lit floor
 
 ## Validation notes
 
 `npm run check` passes (19 tests, clean build). The three open tasks above are the
-hands-on parts of validation. What has been verified so far by driving a real
-browser over the DevTools Protocol at 892×325 (at 1× and 2× device pixel ratio)
-and 1440×813:
+hands-on parts of validation. What has been verified by driving a real browser over
+the DevTools Protocol at 892×412 (1× and 2× device pixel ratio), 1200×620, and
+1680×813:
 
-- No console errors, warnings, or uncaught exceptions on load or during play.
+- No console errors, warnings, or uncaught exceptions on load or during play, once
+  the Vite dev client and Phaser's version banner are discounted.
 - The canvas covers the viewport exactly, the page cannot scroll, and `touch-action`
   is disabled, at every size tested.
 - The drawing buffer is 2 device pixels per CSS pixel at a device pixel ratio of 2,
@@ -77,14 +78,28 @@ and 1440×813:
 - Touch taps move the ghost, trigger a scare from the action grid, and change zoom
   steps; the keyboard shortcut produces the same scare as the button.
 - Out-of-range and insufficient-energy attempts explain themselves and spend no energy.
-- The rotate overlay stays hidden in landscape.
+- Rotating the emulated viewport to portrait shows the gate, hides the canvas, and
+  intercepts a tap aimed at the scare controls; rotating back clears the gate, refills
+  the viewport, keeps the 2× buffer, and preserves score, energy, fear, and ghost
+  position — with a page marker proving the document never reloaded.
+- At the widest zoom step on a 1680×813 window the view stays inside the world, showing
+  lawn, fence, and trees rather than blank space, and the zoom-out button reads as
+  unavailable at that step.
+- Walking the ghost away from Nora at the closest zoom step raises the edge indicator,
+  which names her and gives direction and distance.
 
 Fixed while verifying: a favicon request and Phaser's audio context were the only
-console noise, and Nora's head marker and reaction bubble could be clipped by the
-top of the view or hidden behind the chips, so overhead badges now drop below the
-character when the view crowds them (`overheadPlacement.ts`, unit-tested).
+console noise; Nora's head marker and reaction bubble could be clipped by the top of
+the view or hidden behind the chips, so overhead badges now drop below the character
+when the view crowds them (`overheadPlacement.ts`, unit-tested); the off-screen
+indicator parked on top of the zoom-in button, so its bounds now reserve the zoom
+column; and the reception desk and luggage trolley, the two weakest silhouettes in
+captures, were redrawn — the desk gained a pigeonhole key rack and an overhanging
+counter, and the trolley gained wheels, larger cases, and a handle frame sized to the
+luggage rather than towering over it.
 
-Still needs a human: touch reach and camera comfort in the hand (6.10), the
-subjective isometric read and prop recognition (7.9), and the Azure preview on a
-physical device (5.3). The luggage trolley and the reception desk are the two props
-whose silhouettes read least clearly in captures, so they are worth a close look.
+Still needs a human, because it is a judgement in the hand rather than a check a
+harness can make: touch reach and camera comfort (6.10), the subjective isometric
+read (7.9), and the Azure preview on a physical device (5.3). The branch preview is
+`https://agreeable-pebble-04d5a0c0f-2.eastus2.7.azurestaticapps.net` and returns 200;
+it reflects the last pushed commit, so push before reviewing on a phone.

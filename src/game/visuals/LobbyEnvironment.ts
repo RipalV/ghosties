@@ -3,6 +3,7 @@ import { floorCorners, floorDistance } from '../world/lobbyGeometry';
 import { FLOOR, WALL, WORLD } from '../world/lobbyLayout';
 import {
   drawContactShadow,
+  drawFaceSlots,
   drawIsoBox,
   drawIsoWall,
   fillIsoDiamond,
@@ -342,16 +343,25 @@ export class LobbyEnvironment {
         strokeIsoDiamond(g, { x, y, width: 230, depth: 106 }, PALETTE.rugTrim, 2, 0.5);
         break;
 
-      case 'reception':
+      case 'reception': {
+        // A key rack behind the counter is what separates a reception desk from
+        // any other block of furniture, so it is drawn first and stands tallest.
+        const rack = { x: x - 12, y: y - 74, width: 138, depth: 28, height: 76, color: PALETTE.wood };
+        drawContactShadow(g, rack);
+        drawIsoBox(g, rack);
+        // Many small pigeonholes, so the rack does not read as a windowed facade.
+        drawFaceSlots(g, rack, 6, 3, shadeColor(PALETTE.wood, 0.42));
+
         drawContactShadow(g, { x, y, width: 200, depth: 96 });
-        drawIsoBox(g, { x, y, width: 190, depth: 92, height: 58, color: PALETTE.reception });
-        drawIsoBox(g, { x, y, width: 206, depth: 100, height: 10, color: PALETTE.woodLight });
-        // Guest bell and a ledger, so the counter reads as a reception desk.
-        drawIsoBox(g, { x: x + 52, y: y - 62, width: 26, depth: 16, height: 8, color: PALETTE.brass });
+        drawIsoBox(g, { x, y, width: 186, depth: 90, height: 58, color: PALETTE.reception });
+        // Overhanging counter top, then the guest bell and an open ledger on it.
+        drawIsoBox(g, { x, y: y - 58, width: 206, depth: 100, height: 9, color: PALETTE.woodLight });
+        drawIsoBox(g, { x: x + 54, y: y - 67, width: 24, depth: 16, height: 7, color: PALETTE.brass });
         g.fillStyle(PALETTE.brass, 1);
-        g.fillCircle(x + 52, y - 76, 9);
-        drawIsoBox(g, { x: x - 44, y: y - 62, width: 44, depth: 26, height: 6, color: PALETTE.pianoKeys });
+        g.fillCircle(x + 54, y - 81, 8);
+        drawIsoBox(g, { x: x - 46, y: y - 67, width: 46, depth: 28, height: 5, color: PALETTE.pianoKeys });
         break;
+      }
 
       case 'sofa':
         drawContactShadow(g, { x, y, width: 186, depth: 92 });
@@ -409,13 +419,36 @@ export class LobbyEnvironment {
         g.strokeLineShape(new Phaser.Geom.Line(x, y - 118, x + 9, y - 116));
         break;
 
-      case 'trolley':
-        drawContactShadow(g, { x, y, width: 96, depth: 56 });
-        drawIsoBox(g, { x, y, width: 96, depth: 56, height: 16, color: PALETTE.trolley });
-        drawIsoBox(g, { x: x - 8, y: y - 16, width: 74, depth: 44, height: 34, color: PALETTE.wood });
-        drawIsoBox(g, { x: x + 4, y: y - 50, width: 58, depth: 34, height: 26, color: shadeColor(PALETTE.wood, 1.1) });
-        drawIsoBox(g, { x: x + 40, y: y - 12, width: 8, depth: 8, height: 78, color: PALETTE.brass });
+      case 'trolley': {
+        drawContactShadow(g, { x, y, width: 104, depth: 60 });
+        // Wheels rest on the floor and the deck rides above them, then an
+        // inverted-U frame gives the cart its bell-hop silhouette.
+        g.fillStyle(shadeColor(PALETTE.trolley, 0.45), 1);
+        g.fillEllipse(x - 26, y + 8, 24, 14);
+        g.fillEllipse(x + 26, y + 8, 24, 14);
+        drawIsoBox(g, { x, y: y - 18, width: 96, depth: 56, height: 12, color: PALETTE.trolley });
+
+        // The frame stays just above the luggage so the cart does not read as an
+        // empty rack, and its uprights are dimmed so brass never dominates.
+        const deckTop = y - 30;
+        const frame = shadeColor(PALETTE.brass, 0.82);
+        drawIsoBox(g, { x: x - 30, y: deckTop - 4, width: 8, depth: 8, height: 74, color: frame });
+        drawIsoBox(g, { x: x + 30, y: deckTop - 4, width: 8, depth: 8, height: 74, color: frame });
+        drawIsoBox(g, { x, y: deckTop - 78, width: 70, depth: 10, height: 7, color: frame });
+
+        drawIsoBox(g, { x: x - 4, y: deckTop + 10, width: 86, depth: 50, height: 36, color: PALETTE.wood });
+        g.lineStyle(3, shadeColor(PALETTE.wood, 0.5), 0.9);
+        g.strokeLineShape(new Phaser.Geom.Line(x - 25, deckTop + 26, x - 25, deckTop + 2));
+        drawIsoBox(g, {
+          x: x + 2,
+          y: deckTop - 14,
+          width: 62,
+          depth: 36,
+          height: 26,
+          color: shadeColor(PALETTE.wood, 1.14),
+        });
         break;
+      }
 
       case 'plant':
         drawContactShadow(g, { x, y, width: 64, depth: 34 });

@@ -35,7 +35,7 @@ Deterministic scare outcomes (fear gain, novelty multipliers, score deltas for i
 
 ### Requirement: Scene feedback for scares and range
 
-`GameScene` SHALL coordinate energy spend, range checks, NPC reactions, novelty status text, failed-scare glimpses, and out-of-range messaging. These behaviours are verified by playtesting rather than Phaser unit tests.
+`GameScene` SHALL coordinate energy spend, range checks, NPC reactions, novelty status text, failed-scare glimpses, and out-of-range messaging while delegating visual presentation, camera framing, and responsive HUD layout to focused reusable components. Ability range values and NPC routines SHALL remain expressed in fixed world coordinates so they behave identically on every device. These behaviours are verified by playtesting rather than Phaser unit tests.
 
 #### Scenario: Ineffective scare shows laugh and glimpse
 

@@ -134,6 +134,47 @@ export function drawIsoBox(graphics: Phaser.GameObjects.Graphics, box: IsoBox): 
   );
 }
 
+/**
+ * A grid of recessed slots across a box's left face, following its skew. Used
+ * for details that make a silhouette recognisable, such as a key rack.
+ */
+export function drawFaceSlots(
+  graphics: Phaser.GameObjects.Graphics,
+  box: IsoBox,
+  columns: number,
+  rows: number,
+  color: number,
+): void {
+  const { x, y, width, depth, height } = box;
+  const startX = x - width / 2;
+  const runX = width / 2;
+  const runY = depth / 2;
+
+  const alongFace = (t: number): [number, number] => [startX + runX * t, y + runY * t];
+  const rowHeight = height / (rows + 1);
+
+  for (let column = 0; column < columns; column += 1) {
+    const [nearX, nearY] = alongFace((column + 0.2) / columns);
+    const [farX, farY] = alongFace((column + 0.8) / columns);
+
+    for (let row = 0; row < rows; row += 1) {
+      const base = rowHeight * (row + 0.7);
+      const top = base + rowHeight * 0.55;
+      fillQuad(
+        graphics,
+        [
+          [nearX, nearY - base],
+          [farX, farY - base],
+          [farX, farY - top],
+          [nearX, nearY - top],
+        ],
+        color,
+        0.85,
+      );
+    }
+  }
+}
+
 /** A soft contact shadow that anchors a prop or character to the floor. */
 export function drawContactShadow(
   graphics: Phaser.GameObjects.Graphics,
