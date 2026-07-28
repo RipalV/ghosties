@@ -114,7 +114,7 @@ terraform apply
 terraform output -raw deployment_token
 ```
 
-The workflow fetches the current API key from Azure on each run (`az staticwebapp secrets list`), so you do not need to keep `AZURE_STATIC_WEB_APPS_API_TOKEN` in sync after recreating the Static Web App. Do not commit the token or Terraform state files.
+The workflow fetches the current API key from Azure **inside each deploy job** after OIDC login (`az staticwebapp secrets list`). Masked tokens cannot be passed between jobs via outputs, so the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN` is optional. Do not commit the token or Terraform state files.
 
 ### What the workflow does
 

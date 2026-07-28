@@ -79,3 +79,4 @@
 ## 14. Fetch live SWA API key from Azure
 
 - [x] 14.1 Fetch deployment token via `az staticwebapp secrets list` after OIDC login for production, preview, and close jobs (avoid stale GitHub secret)
+- [x] 14.2 Fetch the token inside each deploy job (do not pass masked tokens via job outputs — GitHub empties them)

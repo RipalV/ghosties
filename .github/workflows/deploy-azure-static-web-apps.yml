@@ -38,8 +38,6 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.TF_WORKING_DIR }}
-    outputs:
-      deployment_token: ${{ steps.token.outputs.deployment_token }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,26 +71,6 @@ jobs:
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         run: terraform apply -auto-approve -input=false -no-color
 
-      # Always fetch the live API key from Azure so deploys do not depend on a stale GitHub secret.
-      - name: Capture deployment token from Azure
-        id: token
-        run: |
-          TOKEN="$(az staticwebapp secrets list \
-            --name "${SWA_NAME}" \
-            --resource-group "${SWA_RESOURCE_GROUP}" \
-            --query "properties.apiKey" \
-            -o tsv | tr -d '\r\n')"
-          if [ -z "$TOKEN" ]; then
-            echo "::error::Could not read Static Web App API key for ${SWA_NAME} in ${SWA_RESOURCE_GROUP}. Ensure terraform apply has created the app."
-            exit 1
-          fi
-          echo "::add-mask::$TOKEN"
-          {
-            echo "deployment_token<<EOF"
-            echo "$TOKEN"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
   build_and_deploy_production:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -117,10 +95,37 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Fetch the token in this job. Masked values cannot be passed via job outputs.
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Capture deployment token from Azure
+        id: token
+        run: |
+          TOKEN="$(az staticwebapp secrets list \
+            --name "${SWA_NAME}" \
+            --resource-group "${SWA_RESOURCE_GROUP}" \
+            --query "properties.apiKey" \
+            -o tsv | tr -d '\r\n')"
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Could not read Static Web App API key for ${SWA_NAME} in ${SWA_RESOURCE_GROUP}."
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          {
+            echo "deployment_token<<EOF"
+            echo "$TOKEN"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Azure Static Web Apps (production)
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ needs.terraform.outputs.deployment_token }}
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.deployment_token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           # Upload the existing Vite dist output; do not rebuild inside the Azure action.
@@ -153,10 +158,37 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Fetch the token in this job. Masked values cannot be passed via job outputs.
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Capture deployment token from Azure
+        id: token
+        run: |
+          TOKEN="$(az staticwebapp secrets list \
+            --name "${SWA_NAME}" \
+            --resource-group "${SWA_RESOURCE_GROUP}" \
+            --query "properties.apiKey" \
+            -o tsv | tr -d '\r\n')"
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Could not read Static Web App API key for ${SWA_NAME} in ${SWA_RESOURCE_GROUP}."
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          {
+            echo "deployment_token<<EOF"
+            echo "$TOKEN"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Azure Static Web Apps (PR preview)
         uses: Azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ needs.terraform.outputs.deployment_token }}
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.deployment_token }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: dist
