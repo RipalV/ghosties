@@ -16,7 +16,8 @@ Operators provided concrete Azure production details. The plan now locks those v
 
 - Keep existing SWA deploy, PR preview/close, Node 22 validation, skip-app-build upload, Pages retirement, and CI workflow
 - Pin Terraform app resources to:
-  - Region: `uksouth`
+  - Resource group region: `westeurope`
+  - Static Web App region: `westeurope` (SWA unsupported in `uksouth`)
   - Resource group: `rg-ghosties-prod`
   - Static Web App: `swa-ghosties-prod`
   - SKU: Free (`sku_tier` / `sku_size` = `Free`)
@@ -69,7 +70,13 @@ Operators provided concrete Azure production details. The plan now locks those v
 - **Why:** Prevents accidental production Terraform apply or production SWA upload from PRs or `workflow_dispatch` on non-main branches.
 - **Alternatives considered:** Rely on push branch filter alone — insufficient for `workflow_dispatch` from other branches.
 
-### 5–7. Prior decisions retained
+### 5. Colocate resource group and Static Web App in westeurope
+
+- **Decision:** Create both `rg-ghosties-prod` and `swa-ghosties-prod` in `westeurope`. Keep a separate `static_web_app_location` variable (validated against SWA-supported regions) even when it matches the RG location.
+- **Why:** SWA cannot be created in `uksouth`; operators chose to colocate the RG in `westeurope` as well for a single production region.
+- **Alternatives considered:** RG in `uksouth` + SWA in `westeurope` — rejected after operator preference for colocated `westeurope`.
+
+### 6–7. Prior decisions retained
 
 - Terraform owns RG + SWA; pipeline apply on main / plan on PR; SWA token via `AZURE_STATIC_WEB_APPS_API_TOKEN`; no gameplay changes.
 

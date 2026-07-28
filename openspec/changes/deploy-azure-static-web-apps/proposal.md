@@ -9,7 +9,7 @@ Ghosties needs a reliable hosted preview of the Vite/Phaser build so playtesters
 - Close Azure preview environments when pull requests are closed.
 - Validate with `npm ci` and `npm run check` before deployment; fail the workflow if checks fail.
 - Build with Node.js 22, then upload the existing `dist` directory without rebuilding inside the Azure Static Web Apps action.
-- Add Terraform under version control to create the required Azure resources (resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` in `uksouth`, Free SKU).
+- Add Terraform under version control to create the required Azure resources (resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` both in `westeurope`, Free SKU).
 - Commit a real `terraform/terraform.tfvars` with those non-secret values; remove `terraform.tfvars.example`.
 - Use fixed Terraform remote state locations: resource group `rg-uks-foundation`, storage account `stripalterraformproduks`, container `tfstate-ghosties` (baked into the workflow / docs — not placeholder GitHub variables).
 - Run Terraform as part of the deployment pipeline so infrastructure is applied (or planned) before the app is uploaded.

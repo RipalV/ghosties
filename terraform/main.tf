@@ -7,7 +7,8 @@ resource "azurerm_resource_group" "ghosties" {
 resource "azurerm_static_web_app" "ghosties" {
   name                = var.static_web_app_name
   resource_group_name = azurerm_resource_group.ghosties.name
-  location            = azurerm_resource_group.ghosties.location
+  # SWA is only available in westus2, centralus, eastus2, westeurope, eastasia (not uksouth).
+  location            = var.static_web_app_location
   sku_tier            = var.sku_tier
   sku_size            = var.sku_size
   tags                = var.tags

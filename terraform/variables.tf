@@ -1,7 +1,21 @@
 variable "location" {
   type        = string
-  description = "Azure region for the resource group and Static Web App."
-  default     = "uksouth"
+  description = "Azure region for the resource group."
+  default     = "westeurope"
+}
+
+variable "static_web_app_location" {
+  type        = string
+  description = "Azure region for the Static Web App (must be a SWA-supported region: westus2, centralus, eastus2, westeurope, or eastasia)."
+  default     = "westeurope"
+
+  validation {
+    condition = contains(
+      ["westus2", "centralus", "eastus2", "westeurope", "eastasia"],
+      var.static_web_app_location
+    )
+    error_message = "static_web_app_location must be one of: westus2, centralus, eastus2, westeurope, eastasia."
+  }
 }
 
 variable "resource_group_name" {

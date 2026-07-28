@@ -66,7 +66,8 @@ Committed `terraform/terraform.tfvars` pins:
 
 | Setting | Value |
 |---------|--------|
-| Region | `uksouth` |
+| Resource group region | `westeurope` |
+| Static Web App region | `westeurope` (SWA-supported regions: `westus2`, `centralus`, `eastus2`, `westeurope`, `eastasia`) |
 | Resource group | `rg-ghosties-prod` |
 | Static Web App | `swa-ghosties-prod` |
 | SKU | Free |

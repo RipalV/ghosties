@@ -22,11 +22,11 @@ The project SHALL deploy the built Vite `dist` output to the production Azure St
 - **AND** pull requests MAY still create or update a separate preview environment only
 
 ### Requirement: Terraform creates required Azure resources
-The project SHALL include Terraform configuration that creates Azure resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` in region `uksouth` with Free SKU, using committed non-secret variable values (no `terraform.tfvars.example` workflow).
+The project SHALL include Terraform configuration that creates Azure resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` both in region `westeurope` with Free SKU, using committed non-secret variable values (no `terraform.tfvars.example` workflow).
 
 #### Scenario: Terraform defines Static Web App with production names
 - **WHEN** an operator inspects the repository Terraform configuration
-- **THEN** it targets resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` in `uksouth` with Free SKU
+- **THEN** it targets resource group `rg-ghosties-prod` and Static Web App `swa-ghosties-prod` both in `westeurope` with Free SKU
 - **AND** those values are present in committed `terraform/terraform.tfvars`
 - **AND** it does not hard-code deployment tokens or client secrets in tracked files
 

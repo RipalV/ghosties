@@ -58,3 +58,11 @@
 - [x] 9.1 Gate Terraform apply and production deploy jobs on `refs/heads/main` (push or workflow_dispatch); keep PR plan + preview deploy separate
 - [x] 9.2 Document main-only production deploy and manual redeploy branch requirement in README
 - [x] 9.3 Update OpenSpec delta spec/design for production-path main-only scenarios
+
+## 10. Static Web App region fix
+
+- [x] 10.1 Place SWA in `westeurope` (supported region); update tfvars, variables, README, and OpenSpec
+
+## 11. Colocate RG and SWA in westeurope
+
+- [x] 11.1 Set resource group `location` to `westeurope` alongside SWA; update Terraform defaults, README, and OpenSpec artifacts
