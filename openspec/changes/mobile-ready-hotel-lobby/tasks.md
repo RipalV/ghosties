@@ -61,3 +61,30 @@ Adopts the presentation reference recorded in design decision 8, using 2D vector
 - [x] 7.7 Rebuild the HUD chips as top-edge pills pairing a round icon with its value, and add a top-corner objective button with a notification marker
 - [x] 7.8 Rebuild scare controls as a square action grid beside a bottom-corner ghost card, with selected and unavailable states readable without colour alone
 - [ ] 7.9 Playtest the isometric read at phone size for depth clarity, prop recognition without labels, and character legibility against the lit floor
+
+## Validation notes
+
+`npm run check` passes (19 tests, clean build). The three open tasks above are the
+hands-on parts of validation. What has been verified so far by driving a real
+browser over the DevTools Protocol at 892×325 (at 1× and 2× device pixel ratio)
+and 1440×813:
+
+- No console errors, warnings, or uncaught exceptions on load or during play.
+- The canvas covers the viewport exactly, the page cannot scroll, and `touch-action`
+  is disabled, at every size tested.
+- The drawing buffer is 2 device pixels per CSS pixel at a device pixel ratio of 2,
+  and the HUD keeps its CSS size, confirming the crisp-rendering decision.
+- Touch taps move the ghost, trigger a scare from the action grid, and change zoom
+  steps; the keyboard shortcut produces the same scare as the button.
+- Out-of-range and insufficient-energy attempts explain themselves and spend no energy.
+- The rotate overlay stays hidden in landscape.
+
+Fixed while verifying: a favicon request and Phaser's audio context were the only
+console noise, and Nora's head marker and reaction bubble could be clipped by the
+top of the view or hidden behind the chips, so overhead badges now drop below the
+character when the view crowds them (`overheadPlacement.ts`, unit-tested).
+
+Still needs a human: touch reach and camera comfort in the hand (6.10), the
+subjective isometric read and prop recognition (7.9), and the Azure preview on a
+physical device (5.3). The luggage trolley and the reception desk are the two props
+whose silhouettes read least clearly in captures, so they are worth a close look.

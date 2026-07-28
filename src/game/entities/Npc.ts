@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import type { FearProfile, FearStage, ScareHistory } from '../fear/FearEngine';
 import { CharacterMarker } from '../visuals/CharacterMarker';
-import { PALETTE } from '../visuals/lobbyTheme';
+import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
+import { cssToWorldUnits, fitsAboveHead } from '../visuals/overheadPlacement';
 import { clampToFloor } from '../world/lobbyGeometry';
 import { MOVEMENT, NORA_ROUTE } from '../world/lobbyLayout';
 
@@ -26,6 +27,14 @@ const FACE_BY_STAGE: Record<FearStage, string> = {
 };
 
 export const NPC_MAX_FEAR = 100;
+
+const BUBBLE_ABOVE_Y = -96;
+const BUBBLE_BELOW_Y = 74;
+const MARKER_ABOVE_Y = -56;
+const MARKER_BELOW_Y = 58;
+/** Screen space the top chips and objective button occupy, in CSS pixels. */
+const TOP_HUD_CLEARANCE_CSS =
+  HUD_LAYOUT.padding + Math.max(HUD_LAYOUT.chipHeight, HUD_LAYOUT.objectiveSize) + 8;
 
 export class Npc extends Phaser.GameObjects.Container {
   readonly fearProfile: FearProfile = {
@@ -78,7 +87,7 @@ export class Npc extends Phaser.GameObjects.Container {
       fontSize: '18px',
       color: '#4a2846',
     }).setOrigin(0.5);
-    this.reactionBubble = scene.add.text(0, -96, '', {
+    this.reactionBubble = scene.add.text(0, BUBBLE_ABOVE_Y, '', {
       fontFamily: 'Trebuchet MS',
       fontSize: '17px',
       color: '#241632',
@@ -90,7 +99,7 @@ export class Npc extends Phaser.GameObjects.Container {
 
     this.add([this.shadow, body, this.bodyShape, this.face, this.reactionBubble]);
 
-    this.marker = new CharacterMarker(scene, -60, STAGE_WORDS.calm, true);
+    this.marker = new CharacterMarker(scene, MARKER_ABOVE_Y, STAGE_WORDS.calm, true);
     this.add(this.marker);
     this.marker.setBarRatio(0);
 
@@ -114,6 +123,8 @@ export class Npc extends Phaser.GameObjects.Container {
   }
 
   update(time: number, deltaMs: number): void {
+    this.placeOverheadBadges();
+
     if (this.stage === 'possessed' || time < this.pausedUntil) {
       this.wasMoving = false;
       return;
@@ -136,6 +147,33 @@ export class Npc extends Phaser.GameObjects.Container {
     if (moving && !this.wasMoving) this.setScale(1.03);
     else if (!moving && this.wasMoving) this.setScale(1);
     this.wasMoving = moving;
+  }
+
+  /**
+   * Drops the marker and reaction bubble under Nora when she stands high in the
+   * view, where they would be clipped or hidden behind the top chips.
+   */
+  private placeOverheadBadges(): void {
+    const camera = this.scene.cameras.main;
+    const viewTop = camera.worldView.y;
+    const clearance = cssToWorldUnits(
+      TOP_HUD_CLEARANCE_CSS,
+      camera.zoom,
+      this.scene.scale.zoom,
+    );
+
+    this.marker.setY(
+      fitsAboveHead(this.y, MARKER_ABOVE_Y, this.marker.badgeHeight, viewTop, clearance)
+        ? MARKER_ABOVE_Y
+        : MARKER_BELOW_Y,
+    );
+
+    if (!this.reactionBubble.visible) return;
+    this.reactionBubble.setY(
+      fitsAboveHead(this.y, BUBBLE_ABOVE_Y, this.reactionBubble.height, viewTop, clearance)
+        ? BUBBLE_ABOVE_Y
+        : BUBBLE_BELOW_Y,
+    );
   }
 
   /** Keeps the head marker and fear bar in step with the scene's fear total. */

@@ -3,6 +3,7 @@ import { PALETTE } from './lobbyTheme';
 
 const BAR_WIDTH = 58;
 const BAR_HEIGHT = 7;
+const BAR_Y = 18;
 const PANEL_HEIGHT = 22;
 
 /**
@@ -11,6 +12,9 @@ const PANEL_HEIGHT = 22;
  * so it never depends on colour alone.
  */
 export class CharacterMarker extends Phaser.GameObjects.Container {
+  /** Drawn height in world units, so callers can keep it inside the view. */
+  readonly badgeHeight: number;
+
   private readonly label: Phaser.GameObjects.Text;
   private readonly panel: Phaser.GameObjects.Rectangle;
   private readonly barTrack?: Phaser.GameObjects.Rectangle;
@@ -31,13 +35,14 @@ export class CharacterMarker extends Phaser.GameObjects.Container {
     this.add([this.panel, this.label]);
 
     if (withBar) {
-      this.barTrack = scene.add.rectangle(0, 18, BAR_WIDTH, BAR_HEIGHT, PALETTE.hudAccent, 0.95)
+      this.barTrack = scene.add.rectangle(0, BAR_Y, BAR_WIDTH, BAR_HEIGHT, PALETTE.hudAccent, 0.95)
         .setStrokeStyle(2, PALETTE.hudStroke, 0.8);
-      this.barFill = scene.add.rectangle(-BAR_WIDTH / 2 + 2, 18, 0, BAR_HEIGHT - 3, PALETTE.hudText, 1)
+      this.barFill = scene.add.rectangle(-BAR_WIDTH / 2 + 2, BAR_Y, 0, BAR_HEIGHT - 3, PALETTE.hudText, 1)
         .setOrigin(0, 0.5);
       this.add([this.barTrack, this.barFill]);
     }
 
+    this.badgeHeight = withBar ? PANEL_HEIGHT / 2 + BAR_Y + BAR_HEIGHT / 2 : PANEL_HEIGHT;
     this.resizePanel();
     scene.add.existing(this);
   }

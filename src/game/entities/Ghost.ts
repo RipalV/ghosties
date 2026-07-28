@@ -1,8 +1,15 @@
 import Phaser from 'phaser';
 import { CharacterMarker } from '../visuals/CharacterMarker';
-import { PALETTE } from '../visuals/lobbyTheme';
+import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
+import { cssToWorldUnits, fitsAboveHead } from '../visuals/overheadPlacement';
 import { clampToFloor } from '../world/lobbyGeometry';
 import { MOVEMENT } from '../world/lobbyLayout';
+
+const MARKER_ABOVE_Y = -74;
+const MARKER_BELOW_Y = 70;
+/** Screen space the top chips and objective button occupy, in CSS pixels. */
+const TOP_HUD_CLEARANCE_CSS =
+  HUD_LAYOUT.padding + Math.max(HUD_LAYOUT.chipHeight, HUD_LAYOUT.objectiveSize) + 8;
 
 export class Ghost extends Phaser.GameObjects.Container {
   private readonly bodyShape: Phaser.GameObjects.Arc;
@@ -33,7 +40,7 @@ export class Ghost extends Phaser.GameObjects.Container {
 
     this.add([this.shadow, this.glow, tail, this.bodyShape, this.face]);
 
-    this.marker = new CharacterMarker(scene, -74, 'HIDDEN', false);
+    this.marker = new CharacterMarker(scene, MARKER_ABOVE_Y, 'HIDDEN', false);
     this.add(this.marker);
 
     this.setDepth(50);
@@ -72,6 +79,8 @@ export class Ghost extends Phaser.GameObjects.Container {
   }
 
   update(deltaMs: number): void {
+    this.placeMarker();
+
     const seconds = deltaMs / 1000;
     const keyboard = this.keyboardDirection.clone();
     let moving = false;
@@ -128,6 +137,28 @@ export class Ghost extends Phaser.GameObjects.Container {
       duration: 220,
       ease: 'Sine.Out',
     });
+  }
+
+  /** Drops the marker below the ghost when the top of the view would clip it. */
+  private placeMarker(): void {
+    const camera = this.scene.cameras.main;
+    const clearance = cssToWorldUnits(
+      TOP_HUD_CLEARANCE_CSS,
+      camera.zoom,
+      this.scene.scale.zoom,
+    );
+
+    this.marker.setY(
+      fitsAboveHead(
+        this.y,
+        MARKER_ABOVE_Y,
+        this.marker.badgeHeight,
+        camera.worldView.y,
+        clearance,
+      )
+        ? MARKER_ABOVE_Y
+        : MARKER_BELOW_Y,
+    );
   }
 
   private moveWithinFloor(x: number, y: number): void {

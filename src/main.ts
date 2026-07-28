@@ -29,6 +29,8 @@ const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'app',
   backgroundColor: '#141130',
+  // The prototype has no sound, so skip the audio context Chrome warns about.
+  audio: { noAudio: true },
   scale: {
     // NONE with an inverse zoom keeps the drawing buffer at device resolution
     // while the canvas still displays at the viewport's CSS size, so vector art
