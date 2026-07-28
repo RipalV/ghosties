@@ -7,8 +7,12 @@ The current playable room proves the scare loop, but its placeholder geometry an
 - Replace the placeholder room grid and rectangles with a cohesive, original storybook haunted-hotel lobby using reusable Phaser visual components.
 - Add readable lobby architecture, furniture, props, layered warm and moonlit lighting, soft shadows, ghost glow, and restrained ambient particles.
 - Restyle the ghost and Nora with project-owned vector-style Phaser shapes plus gentle idle, movement, and reaction animation.
-- Redesign the HUD for landscape touch play: score/objective top-left, fear/energy top-right, and large scare controls across the bottom.
-- Add safe-area-aware viewport styling, prevent browser gesture/selection interference, and show a clear portrait-orientation prompt when the game is too narrow.
+- Give the lobby the full canvas: a camera that follows the ghost frames a slice of a larger lobby world, so the play area fills the screen instead of shrinking to fit reserved HUD bands, with a few discrete zoom steps and a single fixed isometric angle.
+- Redraw the lobby in an isometric cutaway style with volumetric unlabelled furniture, warm interior light pools, and night-time exterior context framing the building.
+- Extend the lobby world so it is larger than any single view, and add an on-screen indicator so Nora can always be located when she is outside the current view.
+- Redesign the HUD in a floating-chip language — top-edge pill chips for score, energy, and fear, a top-corner objective button, a bottom-corner ghost card with a square scare action grid, and transient status toasts.
+- Add safe-area-aware viewport styling and prevent browser gesture/selection interference.
+- Keep landscape as the tuned orientation, with friendly rotate guidance in portrait.
 - Preserve all current fear rules, scoring, NPC routine, scare abilities, keyboard controls, and touch-to-move behavior.
 - Document mobile landscape playtesting and verify the rendered result in an Azure pull-request preview.
 
@@ -16,7 +20,7 @@ The current playable room proves the scare loop, but its placeholder geometry an
 
 ### New Capabilities
 - `storybook-hotel-lobby-visuals`: Family-friendly lobby presentation, reusable visual components, lighting, effects, and character animation.
-- `mobile-gameplay-presentation`: Safe-area-aware responsive HUD, touch-sized controls, orientation guidance, and browser-interaction protection.
+- `mobile-gameplay-presentation`: Full-bleed camera framing, safe-area-aware floating HUD, touch-sized controls, both-orientation support, and browser-interaction protection.
 
 ### Modified Capabilities
 - `playable-room`: The playable room's presentation and responsive input surface are upgraded while preserving its existing gameplay outcomes and controls.
