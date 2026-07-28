@@ -94,7 +94,7 @@ Grant the GitHub Actions OIDC identity permission to use that storage account an
 | `AZURE_CLIENT_ID` | App registration client ID for GitHub OIDC login |
 | `AZURE_TENANT_ID` | `62aa5204-8b12-4ee2-aaee-38615e81bf68` |
 | `AZURE_SUBSCRIPTION_ID` | `9b624e2f-8326-44e6-953d-b251af487227` |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Static Web App deployment token (from Terraform output after first apply) |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Optional backup only — the deploy workflow reads the live API key from Azure after OIDC login |
 
 Configure [Azure Login with OpenID Connect](https://learn.microsoft.com/en-us/azure/developer/github/connect-from-azure-openid-connect) for the app registration (federated credential for this repository). Never commit client secrets, deployment tokens, or Terraform state into the repo.
 
@@ -114,9 +114,7 @@ terraform apply
 terraform output -raw deployment_token
 ```
 
-Copy the deployment token into the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. Do not commit the token or Terraform state files.
-
-**PR previews require this secret.** Production deploys on `main` can also read the token from Terraform output after apply, but you should still store it in GitHub so pull-request preview and close jobs work.
+The workflow fetches the current API key from Azure on each run (`az staticwebapp secrets list`), so you do not need to keep `AZURE_STATIC_WEB_APPS_API_TOKEN` in sync after recreating the Static Web App. Do not commit the token or Terraform state files.
 
 ### What the workflow does
 

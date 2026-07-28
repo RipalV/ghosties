@@ -75,3 +75,7 @@
 
 - [x] 13.1 Remove unsupported `skip_api_build` from the Azure Static Web Apps deploy action
 - [x] 13.2 Pass production deploy token from Terraform output after apply; keep `AZURE_STATIC_WEB_APPS_API_TOKEN` for PR preview/close; document the secret requirement
+
+## 14. Fetch live SWA API key from Azure
+
+- [x] 14.1 Fetch deployment token via `az staticwebapp secrets list` after OIDC login for production, preview, and close jobs (avoid stale GitHub secret)
