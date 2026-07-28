@@ -15,4 +15,23 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [GameScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// On touch devices, request browser fullscreen after the first tap when supported.
+// iOS Safari often ignores this; CSS already fills the visual viewport.
+const preferTouchFullscreen = window.matchMedia('(pointer: coarse)').matches;
+
+if (preferTouchFullscreen) {
+  const tryEnterFullscreen = (): void => {
+    if (game.scale.isFullscreen) return;
+    try {
+      game.scale.startFullscreen();
+    } catch {
+      // Unsupported platforms fail silently; layout still fills the viewport.
+    }
+  };
+
+  game.events.once('ready', () => {
+    game.canvas?.addEventListener('pointerdown', tryEnterFullscreen, { once: true });
+  });
+}
