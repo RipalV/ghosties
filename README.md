@@ -116,6 +116,8 @@ terraform output -raw deployment_token
 
 Copy the deployment token into the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. Do not commit the token or Terraform state files.
 
+**PR previews require this secret.** Production deploys on `main` can also read the token from Terraform output after apply, but you should still store it in GitHub so pull-request preview and close jobs work.
+
 ### What the workflow does
 
 The workflow `.github/workflows/deploy-azure-static-web-apps.yml`:

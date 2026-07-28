@@ -70,3 +70,8 @@
 ## 12. RG uksouth and SWA eastus2
 
 - [x] 12.1 Set resource group to `uksouth` and Static Web App to `eastus2`; update Terraform, README, and OpenSpec artifacts
+
+## 13. SWA deploy action inputs and token
+
+- [x] 13.1 Remove unsupported `skip_api_build` from the Azure Static Web Apps deploy action
+- [x] 13.2 Pass production deploy token from Terraform output after apply; keep `AZURE_STATIC_WEB_APPS_API_TOKEN` for PR preview/close; document the secret requirement
