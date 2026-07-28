@@ -1,7 +1,7 @@
 ## 1. Azure Static Web Apps workflow
 
 - [x] 1.1 Add `.github/workflows/deploy-azure-static-web-apps.yml` triggered on `push` to `main`, `pull_request` (`opened`, `synchronize`, `reopened`, `closed`) targeting `main`, and `workflow_dispatch`
-- [x] 1.2 Configure the build job to use Node.js 22, run `npm ci`, run `npm run check`, and run `npm run build` to produce `dist` (skip install/check/build on PR close)
+- [x] 1.2 Configure the build job to use Node.js 26, run `npm ci`, run `npm run check`, and run `npm run build` to produce `dist` (skip install/check/build on PR close)
 - [x] 1.3 Deploy with Azure/static-web-apps-deploy using `AZURE_STATIC_WEB_APPS_API_TOKEN`, upload existing `dist`, and set skip-app-build so the action does not rebuild
 - [x] 1.4 On pull_request `closed`, run the Azure action in close mode to remove the preview environment
 - [x] 1.5 Ensure the workflow fails before Azure upload when `npm ci`, `npm run check`, or the Vite build fails

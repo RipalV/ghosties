@@ -2,7 +2,7 @@
 
 Ghosties already has (or this change already delivered):
 
-- CI validation in `.github/workflows/ci.yml` (Node 22)
+- CI validation in `.github/workflows/ci.yml` (Node 26)
 - Azure Static Web Apps deploy workflow with Terraform plan/apply jobs
 - GitHub Pages workflow removed
 - Vite `base: './'`
@@ -14,7 +14,7 @@ Operators provided concrete Azure production details. The plan now locks those v
 
 **Goals:**
 
-- Keep existing SWA deploy, PR preview/close, Node 22 validation, skip-app-build upload, Pages retirement, and CI workflow
+- Keep existing SWA deploy, PR preview/close, Node 26 validation, skip-app-build upload, Pages retirement, and CI workflow
 - Pin Terraform app resources to:
   - Resource group region: `westeurope`
   - Static Web App region: `westeurope` (SWA unsupported in `uksouth`)

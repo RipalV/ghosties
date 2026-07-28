@@ -15,7 +15,7 @@ Players control a mischievous ghost, observe NPC behaviour, discover hidden fear
 
 ## Run locally
 
-Prerequisites: Node.js 20.19 or newer. The repo includes an `.nvmrc` file pinned to Node 22 (matching CI).
+Prerequisites: Node.js 26 or newer. The repo includes an `.nvmrc` file pinned to Node 26 (matching CI).
 
 ### Using nvm (recommended)
 
@@ -38,7 +38,7 @@ Open the local address printed by Vite.
 
 ### Without nvm
 
-Install Node.js 20.19 or newer from [nodejs.org](https://nodejs.org/), then run `npm install` and `npm run dev` as above.
+Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `npm install` and `npm run dev` as above.
 
 ## Controls
 
@@ -120,7 +120,7 @@ Copy the deployment token into the GitHub secret `AZURE_STATIC_WEB_APPS_API_TOKE
 
 The workflow `.github/workflows/deploy-azure-static-web-apps.yml`:
 
-- **Production (main only):** On push to `main` or manual `workflow_dispatch` while on `main`: Azure OIDC login → `terraform apply` → Node 22 `npm ci` / `npm run check` / `npm run build` → upload existing `dist` to production (no rebuild inside the Azure action). Production Terraform apply and production deploy never run for pull requests or non-`main` branches.
+- **Production (main only):** On push to `main` or manual `workflow_dispatch` while on `main`: Azure OIDC login → `terraform apply` → Node 26 `npm ci` / `npm run check` / `npm run build` → upload existing `dist` to production (no rebuild inside the Azure action). Production Terraform apply and production deploy never run for pull requests or non-`main` branches.
 - **Pull request preview:** On PRs targeting `main`: `terraform plan` (no apply) → same build → Azure **preview** environment only
 - On pull request close: closes the Azure preview environment
 - Fails before upload if Terraform apply (production path), `npm ci`, `npm run check`, or the Vite build fails

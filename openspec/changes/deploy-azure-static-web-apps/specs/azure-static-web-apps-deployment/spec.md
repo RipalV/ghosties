@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Production deploys from main to Azure Static Web Apps
-The project SHALL deploy the built Vite `dist` output to the production Azure Static Web Apps site only when changes are pushed to the `main` branch (or when `workflow_dispatch` runs on `main`), after successful validation and build with Node.js 22. Pull requests and non-`main` refs MUST NOT update production.
+The project SHALL deploy the built Vite `dist` output to the production Azure Static Web Apps site only when changes are pushed to the `main` branch (or when `workflow_dispatch` runs on `main`), after successful validation and build with Node.js 26. Pull requests and non-`main` refs MUST NOT update production.
 
 #### Scenario: Push to main deploys production
 - **WHEN** a commit is pushed to `main`
@@ -71,7 +71,7 @@ The deployment workflow MUST fail before uploading to Azure when dependency inst
 - **AND** no Azure Static Web Apps upload occurs for that run
 
 ### Requirement: Pull request preview environments
-The project SHALL create or update a temporary Azure Static Web Apps preview environment for pull requests that target `main`, using the same Node.js 22 validation and build steps as production.
+The project SHALL create or update a temporary Azure Static Web Apps preview environment for pull requests that target `main`, using the same Node.js 26 validation and build steps as production.
 
 #### Scenario: Open or update PR creates preview
 - **WHEN** a pull request targeting `main` is opened or updated with new commits
