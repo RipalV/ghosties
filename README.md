@@ -42,11 +42,17 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 
 ## Controls
 
-- Move: WASD, mouse click, or touch
+- Move: WASD, mouse click, or touch the lobby floor
 - Whisper: 1
 - Cold Puff: 2
 - Object Nudge: 3
-- The on-screen ability buttons also work with mouse or touch
+- Large on-screen scare buttons also work with mouse or touch
+
+## Mobile play
+
+- Play in **landscape**. Portrait (or a very narrow window) shows a “Rotate to play” message and pauses interaction.
+- The HUD keeps score/objective top-left, fear/energy top-right, and scare controls along the bottom, clear of safe-area insets.
+- Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 
 ## Validate
 

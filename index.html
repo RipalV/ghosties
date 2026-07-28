@@ -12,6 +12,23 @@
   </head>
   <body>
     <main id="app" aria-label="Project Ghosties game"></main>
+    <div
+      id="rotate-prompt"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="rotate-title"
+      aria-describedby="rotate-copy"
+      data-visible="false"
+      hidden
+    >
+      <div class="card">
+        <h1 id="rotate-title">Rotate to play</h1>
+        <p id="rotate-copy">
+          Ghosties works best in landscape. Turn your device sideways, then haunt the hotel lobby!
+        </p>
+        <p class="hint" aria-hidden="true">📱 → 🖥️</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
