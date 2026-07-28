@@ -1,0 +1,13 @@
+schema: spec-driven
+context: |
+  Project Boo is a browser-first, family-friendly game for players aged 7+.
+  Players control invisible mischievous ghosts and discover NPC fears through
+  observation, clues, dialogue, and experimentation. The game avoids death,
+  injury, combat, violence, and open chat. The prototype uses Phaser,
+  TypeScript, Vite, and generated placeholder art.
+rules:
+  - Keep changes small, playable, and covered by tests where practical.
+  - Keep game rules independent from Phaser rendering code.
+  - Support mouse, keyboard, and touch input.
+  - Do not introduce violent, harmful, or age-inappropriate content.
+  - Do not add multiplayer until the solo fear-discovery loop is validated.

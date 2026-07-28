@@ -1,0 +1,31 @@
+---
+description: Core product context and non-negotiable constraints for Ghosties development
+alwaysApply: true
+---
+
+# Ghosties project context
+
+Ghosties is a browser-first, family-friendly, mischievous haunting game for players aged 7 and above.
+
+## Product principles
+
+- The tone is comedic, playful, mysterious, and only mildly frightening.
+- Ghosties are magical creatures from the Boo Realm, not dead humans.
+- Never add death, injury, blood, weapons, combat, realistic violence, cruelty, or graphic horror.
+- Never add open text or voice chat for children. Prefer room codes, preset emotes, and safe cooperative signals.
+- Failed actions should be funny and informative rather than punitive or humiliating.
+- Every scare outcome must clearly explain why it succeeded, partly worked, failed, repeated, or missed.
+- Prioritise accessibility: readable text, clear icons, touch-friendly controls, reduced-motion compatibility, and no reliance on colour alone.
+
+## Current prototype boundary
+
+The current milestone is a small offline vertical slice:
+
+- One isometric-inspired hotel room.
+- One controllable ghost.
+- One NPC with a readable routine.
+- Three scare abilities.
+- Hidden high, medium, and ineffective fears.
+- Fear stages and comedic failed-scare glimpses.
+
+Do not add multiplayer, accounts, payments, public matchmaking, chat, procedural generation, or full 3D unless an approved OpenSpec change explicitly introduces it.

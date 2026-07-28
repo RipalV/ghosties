@@ -1,0 +1,34 @@
+:root {
+  font-family: Inter, ui-rounded, "Trebuchet MS", system-ui, sans-serif;
+  color: #fff;
+  background: radial-gradient(circle at top, #33255f, #100d20 70%);
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+}
+
+canvas {
+  display: block;
+  max-width: 100vw;
+  max-height: 100dvh;
+  border-radius: 18px;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+}

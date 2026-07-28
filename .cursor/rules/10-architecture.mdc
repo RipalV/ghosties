@@ -1,0 +1,39 @@
+---
+description: TypeScript and Phaser architecture rules
+alwaysApply: true
+---
+
+# Architecture
+
+## Separation of concerns
+
+- Keep deterministic game rules independent from Phaser rendering and input APIs.
+- Put pure rules under `src/game/fear`, `src/game/rules`, or similarly focused domain folders.
+- Phaser scenes coordinate systems; they must not become the permanent home for fear maths, progression rules, persistence, or networking logic.
+- Entities should primarily own presentation and local visual behaviour.
+- Store content such as NPC profiles and ability definitions as typed data rather than large conditional blocks.
+- Design domain state so it can later be serialised and run on an authoritative multiplayer server.
+
+## TypeScript
+
+- Use strict TypeScript and explicit domain types.
+- Avoid `any`, non-null assertions, and unsafe casts unless unavoidable and documented.
+- Prefer discriminated unions for states and outcomes.
+- Prefer readonly data for static definitions.
+- Use pure functions for scoring, fear, novelty, cooldown, and progression calculations.
+- Keep functions small and name them by game intent.
+
+## Phaser
+
+- Use Phaser lifecycle methods deliberately: initialise in `create`, advance runtime state in `update`, and clean subscriptions when scenes shut down.
+- Avoid creating objects repeatedly inside `update`.
+- Avoid module-level mutable game state.
+- Keep canvas size and controls usable on desktop, tablet, and mobile.
+- Use generated placeholder art until a feature is proven fun.
+- Do not introduce a physics engine for interactions that can be expressed with simple distance or bounds checks.
+
+## Dependencies
+
+- Prefer the existing stack: Phaser, TypeScript, Vite, Vitest.
+- Do not add a dependency for a small utility that can be implemented safely in a few lines.
+- Explain the purpose, maintenance cost, bundle impact, and alternatives before adding a major dependency.

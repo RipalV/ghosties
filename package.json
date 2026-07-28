@@ -1,0 +1,29 @@
+{
+  "name": "project-boo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Browser-first family-friendly ghost haunting game prototype.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run test && npm run build",
+    "openspec:init": "openspec init --tools cursor --force",
+    "openspec:update": "openspec update"
+  },
+  "dependencies": {
+    "phaser": "^4.2.1"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "^1.6.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}

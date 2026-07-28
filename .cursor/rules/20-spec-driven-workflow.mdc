@@ -1,0 +1,37 @@
+---
+description: OpenSpec and AI-assisted change workflow
+alwaysApply: true
+---
+
+# Spec-driven development
+
+Before implementing a meaningful new feature:
+
+1. Read `openspec/config.yaml` and the relevant stable specifications in `openspec/specs`.
+2. Check `openspec/changes` for an active proposal covering the request.
+3. For changes that alter behaviour, introduce systems, or span several files, create or update an OpenSpec proposal, delta specification, design, and task list first.
+4. Keep changes small enough to review and playtest independently.
+5. Mark tasks complete only after implementation and validation.
+6. Do not silently reinterpret an approved requirement. Record assumptions in the design document.
+
+## Implementation discipline
+
+- Inspect existing code before generating replacements.
+- Preserve working behaviour unless the specification requires a change.
+- Modify the smallest coherent set of files.
+- Do not perform unrelated refactors in a feature change.
+- Never delete tests merely to make validation pass.
+- Never claim a command passed unless it was actually run successfully.
+- When blocked by missing tools, assets, or network access, report the exact limitation and leave reproducible validation instructions.
+
+## Completion checklist
+
+For each change, verify as applicable:
+
+- Acceptance scenarios are implemented.
+- Domain rules have unit tests.
+- Mouse, keyboard, and touch behaviour remain usable.
+- The feature communicates success and failure clearly.
+- Child-safety and content constraints are preserved.
+- `npm run check` passes.
+- README or game-design documentation is updated when developer setup or player behaviour changes.

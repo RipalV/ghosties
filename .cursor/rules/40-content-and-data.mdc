@@ -1,0 +1,34 @@
+---
+description: Rules for NPCs, scares, progression, monetisation, and online safety
+alwaysApply: true
+---
+
+# Game content and data
+
+## NPC and scare design
+
+- Give NPCs readable motivations, routines, high fears, medium fears, ineffective scares, a resistance, and eventually a personal clue.
+- An ineffective scare must still teach the player something.
+- Repetition should reduce novelty and encourage varied combinations.
+- Possession must remain goofy, temporary, non-violent, and useful for cooperative scares.
+- Successfully haunted NPCs may become harmless Haunted Helpers rather than disappearing or being harmed.
+
+## Progression
+
+- Match upgrades may affect power and tactical options.
+- Permanent progression should mainly unlock cosmetics, variety, stories, and alternate effects rather than pay-to-win strength.
+- Keep scoring transparent and reward discovery, variety, teamwork, and creativity.
+
+## Online and child safety
+
+When online features are eventually specified:
+
+- Prefer private room codes and preset communication.
+- Minimise personal data collection.
+- Do not expose public profiles, precise location, or unrestricted user-generated text by default.
+- Server authority must own NPC state, scores, and scare outcomes.
+- Include mute, block, report, parental controls, and safe defaults before public matchmaking.
+
+## Monetisation
+
+Do not introduce loot boxes, gambling-like mechanics, manipulative countdowns, pay-to-win abilities, or pressure-based purchases. Any future purchase design must be transparent and appropriate for a family audience.

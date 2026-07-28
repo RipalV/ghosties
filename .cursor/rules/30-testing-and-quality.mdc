@@ -1,0 +1,45 @@
+---
+description: Testing, quality, performance, and accessibility expectations
+alwaysApply: true
+---
+
+# Testing and quality
+
+## Tests
+
+- Add or update Vitest tests for pure game rules.
+- Test high, medium, ineffective, repeated, boundary, and invalid outcomes where relevant.
+- Prefer deterministic tests; inject or seed randomness.
+- Treat every bug fix as an opportunity for a regression test.
+- Do not test Phaser rendering details in unit tests when the underlying rule can be tested as a pure function.
+
+## Validation
+
+Run before considering a change complete:
+
+```bash
+npm run check
+```
+
+When changing visual or input behaviour, also run the game and manually verify:
+
+- Desktop keyboard input.
+- Mouse or pointer movement.
+- Touch-sized controls at a narrow viewport.
+- No errors in the browser console.
+- Clear NPC feedback after each scare.
+
+## Performance
+
+- Target smooth play on ordinary phones, tablets, and laptops.
+- Avoid allocations, pathfinding recalculation, and object creation every frame.
+- Reuse visual effects where practical.
+- Keep initial downloads small and compress future art and audio assets.
+
+## Accessibility and UX
+
+- Interactive targets should be comfortably touchable.
+- Do not communicate state using colour alone; pair it with text, shape, animation, or icons.
+- Avoid rapid flashing. Any flickering-light ability must use safe timing and offer a reduced-effects setting before release.
+- Keep text concise and understandable for younger readers.
+- Provide immediate, friendly feedback rather than unexplained score changes.
