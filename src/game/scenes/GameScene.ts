@@ -3,17 +3,20 @@ import { STARTING_ABILITIES, type ScareAbility } from '../abilities/ScareAbility
 import { Ghost } from '../entities/Ghost';
 import { Npc } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
-import { AbilityButton } from '../ui/AbilityButton';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
-import { HUD_LAYOUT } from '../visuals/lobbyTheme';
+import { SceneBackdrop } from '../visuals/SceneBackdrop';
+import { HUD_LAYOUT, ROOM } from '../visuals/lobbyTheme';
 
 export class GameScene extends Phaser.Scene {
   private ghost!: Ghost;
   private npc!: Npc;
   private ambience!: LobbyAmbience;
   private hud!: GameHud;
+  private backdrop!: SceneBackdrop;
+  /** Holds the fixed-coordinate lobby so gameplay maths stays viewport-independent. */
+  private lobby!: Phaser.GameObjects.Container;
   private score = 0;
   private energy = 100;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -24,18 +27,23 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
-    new LobbyEnvironment(this);
+    this.backdrop = new SceneBackdrop(this);
+    this.lobby = this.add.container(0, 0).setDepth(0);
+
+    const environment = new LobbyEnvironment(this);
     this.ambience = new LobbyAmbience(this);
     this.hud = new GameHud(this);
 
     this.ghost = new Ghost(this, 210, 330);
     this.npc = new Npc(this, 510, 300);
+    this.lobby.add([environment.container, this.ambience.container, this.npc, this.ghost]);
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Keep taps on the floor playable; ignore the ability strip.
-      if (pointer.y < HUD_LAYOUT.abilityY - HUD_LAYOUT.abilityHeight / 2 - 8) {
-        this.ghost.setTarget(pointer.worldX, pointer.worldY);
-      }
+      if (pointer.y >= this.hud.controlBandTop) return;
+      this.ghost.setTarget(
+        (pointer.x - this.lobby.x) / this.lobby.scaleX,
+        (pointer.y - this.lobby.y) / this.lobby.scaleY,
+      );
     });
 
     const keyboard = this.input.keyboard;
@@ -53,21 +61,30 @@ export class GameScene extends Phaser.Scene {
       keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
     ];
 
-    STARTING_ABILITIES.forEach((ability, index) => {
-      new AbilityButton(
-        this,
-        HUD_LAYOUT.abilityStartX + index * HUD_LAYOUT.abilityGap,
-        HUD_LAYOUT.abilityY,
-        ability,
-        String(index + 1),
-        () => this.useAbility(ability),
-      );
-    });
-
+    this.hud.createAbilityControls(STARTING_ABILITIES, (ability) => this.useAbility(ability));
     this.hud.setStatus('Move with WASD or tap the floor. Get close, then try a scare.');
     this.updateHud();
 
-    this.scale.on('resize', () => this.hud.onResize());
+    this.layout();
+    this.scale.on('resize', this.layout, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.layout, this));
+  }
+
+  /** Fits the fixed lobby into the live viewport and re-anchors the HUD to its edges. */
+  private layout(): void {
+    const { width, height } = this.scale.gameSize;
+    this.backdrop.resize(width, height);
+
+    const available = Math.max(160, height - HUD_LAYOUT.topBandHeight - HUD_LAYOUT.bottomBandHeight);
+    const scale = Math.min(width / ROOM.width, available / ROOM.artHeight);
+
+    this.lobby.setScale(scale);
+    this.lobby.setPosition(
+      (width - ROOM.width * scale) / 2,
+      HUD_LAYOUT.topBandHeight + (available - ROOM.artHeight * scale) / 2,
+    );
+
+    this.hud.layout(width, height);
   }
 
   update(time: number, delta: number): void {

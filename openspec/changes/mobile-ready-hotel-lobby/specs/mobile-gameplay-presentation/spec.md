@@ -10,6 +10,21 @@ The game SHALL provide a landscape-mobile-ready HUD that keeps score and objecti
 - **AND** scare controls are reachable along the bottom
 - **AND** HUD elements do not overlap each other, safe areas, or the lobby interaction area
 
+### Requirement: Full-viewport presentation
+The game SHALL fill the available viewport on any landscape aspect ratio without letterbox bars, and SHALL offer an optional user-activated full-screen control so players can hide browser chrome where the browser permits it.
+
+#### Scenario: Wide phone viewport
+- **WHEN** the game runs on a landscape viewport wider than the lobby's aspect ratio
+- **THEN** the presentation extends to the viewport edges
+- **AND** no empty letterbox bars are visible beside the lobby
+- **AND** gameplay distances, ranges, and NPC routes are unchanged
+
+#### Scenario: Player requests full screen
+- **WHEN** the player activates the full-screen control on a browser that supports it
+- **THEN** the game enters full screen and re-lays out to the new viewport
+- **AND** the control can return the game to the normal view
+- **AND** the game remains playable when the browser does not support full screen
+
 ### Requirement: Touch-safe scare controls
 Each on-screen scare control SHALL have a comfortably touchable target of at least 44 CSS pixels in each dimension, include a concise text label or icon-plus-label, and remain available alongside keyboard shortcuts.
 

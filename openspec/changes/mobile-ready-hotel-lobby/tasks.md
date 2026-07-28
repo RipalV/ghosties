@@ -22,6 +22,8 @@
 - [x] 4.1 Update page and game-container styles to prevent scrolling, selection, and unintended touch gestures while respecting safe-area insets
 - [x] 4.2 Add a friendly, accessible portrait-orientation overlay that blocks gameplay until a usable landscape viewport is available
 - [x] 4.3 Verify desktop pointer/keyboard movement and landscape touch-to-move remain functional without browser console errors
+- [x] 4.4 Fill the viewport on any landscape ratio by resizing the canvas and fitting the fixed lobby, removing letterbox bars
+- [x] 4.5 Add an optional user-activated full-screen control that degrades gracefully when the browser does not support it
 
 ## 5. Validation and preview review
 

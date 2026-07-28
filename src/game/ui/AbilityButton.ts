@@ -3,19 +3,20 @@ import type { ScareAbility } from '../abilities/ScareAbility';
 import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
 
 export class AbilityButton extends Phaser.GameObjects.Container {
+  readonly baseWidth = HUD_LAYOUT.abilityWidth;
+  readonly baseHeight = HUD_LAYOUT.abilityHeight;
+
   constructor(
     scene: Phaser.Scene,
-    x: number,
-    y: number,
     ability: ScareAbility,
     shortcut: string,
     onActivate: () => void,
   ) {
-    super(scene, x, y);
+    super(scene, 0, 0);
 
     const width = HUD_LAYOUT.abilityWidth;
     const height = HUD_LAYOUT.abilityHeight;
-    const hitPad = 6;
+    const hitPad = 8;
 
     const background = scene.add.rectangle(0, 0, width, height, PALETTE.hudPanel, 0.94)
       .setStrokeStyle(3, PALETTE.hudStroke, 1)
@@ -30,14 +31,14 @@ export class AbilityButton extends Phaser.GameObjects.Container {
         useHandCursor: true,
       });
 
-    const icon = scene.add.text(-width / 2 + 28, 0, ability.emoji, { fontSize: '28px' }).setOrigin(0.5);
-    const title = scene.add.text(-width / 2 + 54, -14, ability.name, {
+    const icon = scene.add.text(-width / 2 + 26, 0, ability.emoji, { fontSize: '26px' }).setOrigin(0.5);
+    const title = scene.add.text(-width / 2 + 50, -14, ability.name, {
       fontFamily: 'Trebuchet MS',
-      fontSize: '17px',
+      fontSize: '16px',
       color: '#ffffff',
       fontStyle: 'bold',
     });
-    const detail = scene.add.text(-width / 2 + 54, 10, `${shortcut} · ${ability.energyCost} energy`, {
+    const detail = scene.add.text(-width / 2 + 50, 8, `${shortcut} · ${ability.energyCost} energy`, {
       fontFamily: 'Trebuchet MS',
       fontSize: '13px',
       color: '#cfc5f4',
@@ -53,6 +54,7 @@ export class AbilityButton extends Phaser.GameObjects.Container {
 
     this.add([background, icon, title, detail]);
     this.setDepth(110);
+    this.setScrollFactor(0);
     scene.add.existing(this);
   }
 }

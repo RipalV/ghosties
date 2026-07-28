@@ -35,15 +35,15 @@ The current Phaser scene draws its entire room, HUD, props, and placeholder char
 
 ### 3. Keep gameplay coordinates stable; make presentation responsive
 
-- **Decision:** Preserve the current logical scene dimensions and gameplay coordinates. HUD components use layout anchors, safe-area CSS variables, and Phaser scale resize events; touch buttons meet a 44 CSS-pixel minimum effective target.
+- **Decision:** Preserve the current logical scene dimensions and gameplay coordinates. The canvas resizes to the viewport (Phaser `RESIZE`), a full-viewport backdrop is drawn behind the lobby, and the fixed 960×500 lobby art is scaled and centred inside a container so no letterbox bars appear on wide phone screens. HUD components use layout anchors, safe-area CSS variables, and Phaser scale resize events; touch buttons meet a 44 CSS-pixel minimum effective target.
 - **Why:** This protects fear/range behavior while making the controls readable on landscape phones and browsers.
 - **Alternatives considered:** Rewriting scene coordinates for each viewport — rejected as high risk to gameplay; using colour alone for HUD states — rejected for accessibility.
 
 ### 4. Handle portrait with an HTML/CSS overlay
 
-- **Decision:** Use a responsive orientation overlay outside the Phaser scene when the viewport is too narrow or portrait, with a concise instruction to rotate. It blocks gameplay beneath it.
+- **Decision:** Use a responsive orientation overlay outside the Phaser scene when the viewport is too narrow or portrait, with a concise instruction to rotate. It blocks gameplay beneath it. Full screen is offered as an optional button rather than forced, because browsers only honour it from a user gesture and iPhone Safari does not support element full screen at all.
 - **Why:** It is dependable across mobile browsers and does not require the game to draw at impractically narrow dimensions.
-- **Alternatives considered:** Requesting fullscreen/orientation lock — rejected because browsers may deny it and it removes player choice.
+- **Alternatives considered:** Automatically requesting fullscreen/orientation lock — rejected because browsers may deny it and it removes player choice.
 
 ### 5. Verify visual work through the PR deployment path
 

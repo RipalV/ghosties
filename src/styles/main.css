@@ -57,6 +57,31 @@ canvas {
   -webkit-user-select: none;
 }
 
+/* Fullscreen toggle: browsers only hide their own chrome from a user gesture. */
+#fullscreen-toggle {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  color: #fff7cf;
+  background: #241836d9;
+  border: 2px solid #8a78c0;
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#fullscreen-toggle[hidden] {
+  display: none;
+}
+
 /* Portrait / too-narrow guidance — blocks play until landscape space is available. */
 #rotate-prompt {
   position: fixed;

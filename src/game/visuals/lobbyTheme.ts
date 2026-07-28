@@ -3,6 +3,8 @@
 export const ROOM = {
   width: 960,
   height: 600,
+  /** Vertical band the lobby art occupies; used to fit the room into any viewport. */
+  artHeight: 500,
   playMinX: 90,
   playMaxX: 870,
   playMinY: 120,
@@ -61,14 +63,13 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
 ] as const;
 
 export const HUD_LAYOUT = {
-  leftX: 24,
-  rightX: 936,
-  topY: 16,
-  statusY: 478,
-  abilityY: 548,
-  abilityStartX: 150,
-  abilityGap: 220,
-  abilityWidth: 200,
-  abilityHeight: 72,
+  padding: 14,
+  panelHeight: 62,
+  topBandHeight: 84,
+  bottomBandHeight: 104,
+  abilityWidth: 190,
+  abilityHeight: 64,
+  abilityGap: 16,
+  /** Buttons never scale below this so touch targets stay comfortable. */
   minTouchPx: 44,
 } as const;

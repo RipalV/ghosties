@@ -51,6 +51,8 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 ## Mobile play
 
 - Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction.
+- The canvas fills the viewport on any landscape ratio, so there are no letterbox bars beside the lobby.
+- Tap the **⛶** button at the top of the screen to enter full screen and hide the browser address bar. Browsers only allow this from a tap, and iPhone Safari does not support it — the game still fills the viewport there.
 - The HUD keeps score/objective top-left, fear/energy top-right, and scare controls along the bottom, clear of safe-area insets.
 - Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 

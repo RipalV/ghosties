@@ -19,7 +19,7 @@ export class LobbyEnvironment {
   private drawBackdrop(scene: Phaser.Scene): void {
     const g = scene.add.graphics();
     g.fillStyle(PALETTE.nightSky, 1);
-    g.fillRect(0, 0, ROOM.width, ROOM.height);
+    g.fillRect(0, 0, ROOM.width, ROOM.artHeight);
     this.container.add(g);
   }
 

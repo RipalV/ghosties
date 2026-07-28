@@ -11,10 +11,13 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: 'app',
   backgroundColor: '#17142b',
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    width: 960,
-    height: 600,
+    // RESIZE keeps the canvas exactly the size of the viewport, so no letterbox
+    // bars appear on wide phone screens. GameScene lays itself out on resize.
+    mode: Phaser.Scale.RESIZE,
+    autoCenter: Phaser.Scale.NO_CENTER,
+    width: '100%',
+    height: '100%',
+    fullscreenTarget: 'app',
   },
   scene: [GameScene],
 };
@@ -55,20 +58,30 @@ window.addEventListener('orientationchange', () => {
 game.events.once('ready', updateOrientationPrompt);
 updateOrientationPrompt();
 
-// On touch devices, request browser fullscreen after the first tap when supported.
-const preferTouchFullscreen = window.matchMedia('(pointer: coarse)').matches;
+const fullscreenButton = document.getElementById('fullscreen-toggle');
+const fullscreenSupported = game.scale.fullscreen.available;
 
-if (preferTouchFullscreen) {
-  const tryEnterFullscreen = (): void => {
-    if (game.scale.isFullscreen) return;
-    try {
-      game.scale.startFullscreen();
-    } catch {
-      // Unsupported platforms fail silently; layout still fills the viewport.
-    }
-  };
+function syncFullscreenButton(): void {
+  if (!fullscreenButton) return;
+  const active = game.scale.isFullscreen;
+  fullscreenButton.textContent = active ? '✕' : '⛶';
+  fullscreenButton.setAttribute(
+    'aria-label',
+    active ? 'Leave full screen' : 'Play in full screen',
+  );
+}
 
-  game.events.once('ready', () => {
-    game.canvas?.addEventListener('pointerdown', tryEnterFullscreen, { once: true });
-  });
+if (fullscreenButton) {
+  if (!fullscreenSupported) {
+    fullscreenButton.hidden = true;
+  } else {
+    syncFullscreenButton();
+    // Fullscreen must be requested from a user gesture, so it stays a button.
+    fullscreenButton.addEventListener('click', () => {
+      game.scale.toggleFullscreen();
+      syncFullscreenButton();
+    });
+    document.addEventListener('fullscreenchange', syncFullscreenButton);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenButton);
+  }
 }
