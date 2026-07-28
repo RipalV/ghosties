@@ -66,3 +66,7 @@
 ## 11. Colocate RG and SWA in westeurope
 
 - [x] 11.1 Set resource group `location` to `westeurope` alongside SWA; update Terraform defaults, README, and OpenSpec artifacts
+
+## 12. RG uksouth and SWA eastus2
+
+- [x] 12.1 Set resource group to `uksouth` and Static Web App to `eastus2`; update Terraform, README, and OpenSpec artifacts

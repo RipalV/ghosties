@@ -1,13 +1,13 @@
 variable "location" {
   type        = string
   description = "Azure region for the resource group."
-  default     = "westeurope"
+  default     = "uksouth"
 }
 
 variable "static_web_app_location" {
   type        = string
   description = "Azure region for the Static Web App (must be a SWA-supported region: westus2, centralus, eastus2, westeurope, or eastasia)."
-  default     = "westeurope"
+  default     = "eastus2"
 
   validation {
     condition = contains(
