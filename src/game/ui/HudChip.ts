@@ -8,6 +8,9 @@ import { drawRoundedPanel, hudFont } from './hudDraw';
  * relies on colour to be understood.
  */
 export class HudChip extends Phaser.GameObjects.Container {
+  /** Layout width in game pixels; do not use Container.setSize (breaks sibling layout packing). */
+  chipWidth = 0;
+
   private readonly plate: Phaser.GameObjects.Graphics;
   private readonly value: Phaser.GameObjects.Text;
   private readonly chipHeight: number;
@@ -43,10 +46,9 @@ export class HudChip extends Phaser.GameObjects.Container {
   private redraw(): void {
     const contentWidth =
       this.chipHeight / 2 + this.iconRadius + this.gap + this.value.width + HUD_LAYOUT.chipPaddingX * this.uiScale;
-    const width = Math.max(this.chipHeight * 2, contentWidth);
+    this.chipWidth = Math.max(this.chipHeight * 2, contentWidth);
 
     this.plate.clear();
-    drawRoundedPanel(this.plate, 0, -this.chipHeight / 2, width, this.chipHeight, this.chipHeight / 2);
-    this.setSize(width, this.chipHeight);
+    drawRoundedPanel(this.plate, 0, -this.chipHeight / 2, this.chipWidth, this.chipHeight, this.chipHeight / 2);
   }
 }

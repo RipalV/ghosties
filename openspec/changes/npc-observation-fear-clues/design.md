@@ -31,7 +31,7 @@ The vertical slice already has three scare abilities, Nora with a typed fear pro
 
 ### 1. Pure observation session + discovery store
 
-- **Decision:** Implement observation as a pure state machine with states `idle` | `observing` | `cancelled` (in-progress cleared) | complete-enough-to-reveal, driven by range checks and elapsed time. Pair it with a discovery store scoped to the **active haunting session** that records clue IDs already revealed and whether the observation bonus has been granted. Phaser only starts/stops sessions and plays feedback.
+- **Decision:** Implement observation as a pure state machine with persisted statuses `idle` | `observing`. Leaving range or finishing a pass returns to `idle` with in-progress progress cleared (cancel is a transition, not a stored status). Clue unlocks happen when progress crosses authored thresholds while observing. Pair this with a discovery store scoped to the **active haunting session** that records clue IDs already revealed and whether the observation bonus has been granted. Phaser only starts/stops sessions and plays feedback.
 - **Why:** Matches project architecture, enables deterministic tests, and keeps discovery serialisable later without shipping persistence now.
 - **Reset boundary:** Discovery state and observation-bonus eligibility reset when the haunting session is restarted or a new scene session begins. This change does not add a dedicated restart UI; reset hooks into whatever session/scene recreate path already exists (and any future restart that recreates that session).
 - **Alternatives considered:** Embedding timers and clue lists in `GameScene` — rejected as hard to test and Nora-specific; “round-scoped” wording without a round system — rejected as ambiguous.
@@ -105,4 +105,4 @@ The vertical slice already has three scare abilities, Nora with a typed fear pro
 
 - Exact observation duration and range numbers (seed from Whisper range ~180 as a starting point; tune in playtest).
 - Whether the observation bonus triggers after any useful clue or only after two — default **any one non-personality clue** unless playtest shows it is too easy.
-- Exact keyboard shortcut letter (`O` vs `4`) — pick one during implementation and document it in the README.
+- ~~Exact keyboard shortcut letter (`O` vs `4`)~~ — resolved: **`O`**, documented in the README.

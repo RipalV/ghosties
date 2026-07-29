@@ -4,16 +4,17 @@ import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
 import { drawRoundedPanel, hudFont } from './hudDraw';
 
 /**
- * One square tile in the scare action grid. It shows the ability icon, its
- * keyboard shortcut, and its energy cost, and marks itself unavailable with a
- * dimmed plate plus a lock glyph rather than by colour alone.
+ * One square tile in the scare action grid. Hit-testing is owned by GameHud in
+ * screen space (UI camera), not Phaser's interactive system — the world camera
+ * zoom would otherwise misalign hit targets.
  */
 export class ActionButton extends Phaser.GameObjects.Container {
   readonly ability: ScareAbility;
+  readonly size: number;
 
   private readonly plate: Phaser.GameObjects.Graphics;
   private readonly lock: Phaser.GameObjects.Text;
-  private readonly size: number;
+  private readonly onActivate: () => void;
   private affordable = true;
 
   constructor(
@@ -25,6 +26,7 @@ export class ActionButton extends Phaser.GameObjects.Container {
   ) {
     super(scene, 0, 0);
     this.ability = ability;
+    this.onActivate = onActivate;
     this.size = HUD_LAYOUT.actionSize * uiScale;
 
     const half = this.size / 2;
@@ -44,25 +46,18 @@ export class ActionButton extends Phaser.GameObjects.Container {
 
     this.add([this.plate, icon, shortcutLabel, costCircle, costLabel, this.lock]);
     this.redraw(false);
-
-    const padding = 4 * uiScale;
-    this.setSize(this.size, this.size).setInteractive({
-      hitArea: new Phaser.Geom.Rectangle(
-        -half - padding,
-        -half - padding,
-        this.size + padding * 2,
-        this.size + padding * 2,
-      ),
-      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
-      useHandCursor: true,
-    });
-
-    this.on('pointerdown', () => {
-      this.flashSelected();
-      onActivate();
-    });
-
+    // Do not call setSize — on Containers it shifts displayOrigin and misaligns hits.
     scene.add.existing(this);
+  }
+
+  containsPoint(x: number, y: number, pad = 0): boolean {
+    const half = this.size / 2 + pad;
+    return x >= this.x - half && x <= this.x + half && y >= this.y - half && y <= this.y + half;
+  }
+
+  press(): void {
+    this.flashSelected();
+    this.onActivate();
   }
 
   setAffordable(affordable: boolean): void {
@@ -73,7 +68,6 @@ export class ActionButton extends Phaser.GameObjects.Container {
     this.setAlpha(affordable ? 1 : 0.55);
   }
 
-  /** Brief "selected" read after activation, as required for touch feedback. */
   flashSelected(): void {
     this.redraw(true);
     this.setScale(0.95);

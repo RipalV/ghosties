@@ -1,8 +1,24 @@
 import Phaser from 'phaser';
 import { STARTING_ABILITIES, type ScareAbility } from '../abilities/ScareAbility';
+import { NORA_CONTENT } from '../content/nora';
 import { Ghost } from '../entities/Ghost';
 import { Npc, NPC_MAX_FEAR } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
+import {
+  createDiscoveryState,
+  discoverClue,
+  resetDiscoveryState,
+} from '../observation/discoveryStore';
+import { applyObservationBonus } from '../observation/observationBonus';
+import {
+  canStartObservation,
+  createObservationSession,
+  findNextUndiscoveredClue,
+  isInObservationRange,
+  startObservation,
+  tickObservation,
+} from '../observation/observationSession';
+import type { ClueDefinition, DiscoveryState, ObservationSession } from '../observation/types';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
@@ -13,7 +29,8 @@ import {
 } from '../world/lobbyGeometry';
 import { CAMERA, GHOST_START, NORA_ROUTE, WORLD } from '../world/lobbyLayout';
 
-const OBJECTIVE = 'Haunt Nora gently — get close, then try a scare she has not seen yet.';
+const OBJECTIVE =
+  'Watch Nora closely, gather clues, then try a scare that fits what you learned.';
 /** How far inside the viewport edge (in CSS pixels) Nora must be to drop the marker. */
 const ON_SCREEN_INSET = 24;
 const PINCH_THRESHOLD = 0.15;
@@ -33,8 +50,12 @@ export class GameScene extends Phaser.Scene {
   private pinchStartStepIndex: number = CAMERA.defaultZoomStepIndex;
   private score = 0;
   private energy = 100;
+  private observationSession: ObservationSession = createObservationSession();
+  private discoveryState: DiscoveryState = createDiscoveryState();
+  private readonly npcContent = NORA_CONTENT;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private abilityKeys!: Phaser.Input.Keyboard.Key[];
+  private observeKey!: Phaser.Input.Keyboard.Key;
 
   constructor() {
     super('game');
@@ -50,18 +71,25 @@ export class GameScene extends Phaser.Scene {
     this.npc = new Npc(this, NORA_ROUTE[0].x, NORA_ROUTE[0].y);
     this.world.add([environment.container, this.ambience.container, this.npc, this.ghost]);
 
+    this.discoveryState = resetDiscoveryState();
+    this.observationSession = createObservationSession();
+
     this.hud = new GameHud(this, this.uiScale, {
       objective: OBJECTIVE,
       onZoomIn: () => this.setZoomStep(this.zoomStepIndex - 1),
       onZoomOut: () => this.setZoomStep(this.zoomStepIndex + 1),
+      onObserve: () => this.tryObserve(),
+      onToggleClues: () => this.toggleCluePanel(),
     });
 
     this.setupCameras();
     this.setupInput();
 
     this.hud.createAbilityControls(STARTING_ABILITIES, (ability) => this.useAbility(ability));
-    this.hud.setStatus('Move with WASD or tap the floor. Get close, then try a scare.');
+    this.hud.setClueEntries(this.npcContent.clues, this.discoveryState.discoveredClueIds);
+    this.hud.setStatus('Move with WASD or tap the floor. Press O or tap 👁 to observe Nora up close.');
     this.updateHud();
+    this.refreshObservationHud();
 
     this.layout();
     this.scale.on('resize', this.layout, this);
@@ -88,7 +116,9 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.input.pointer2?.isDown) return;
-      if (this.hud.blocksPointer(pointer.x, pointer.y)) return;
+      // Corner controls (objective / clues / zoom) are HTML. Phaser only owns
+      // Observe + scare hits here; use pointer game coords for those.
+      if (this.hud.handlePointerDown(pointer.x, pointer.y)) return;
 
       const target = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
       this.ghost.setTarget(target.x, target.y);
@@ -108,6 +138,7 @@ export class GameScene extends Phaser.Scene {
       keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.TWO),
       keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.THREE),
     ];
+    this.observeKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.O);
   }
 
   /** Re-frames the camera and re-anchors the HUD whenever the viewport changes. */
@@ -159,10 +190,116 @@ export class GameScene extends Phaser.Scene {
     this.ambience.update(delta);
     this.updatePinchZoom();
     this.updateNpcIndicator();
+    this.updateObservation(delta);
 
     this.abilityKeys.forEach((key, index) => {
       if (Phaser.Input.Keyboard.JustDown(key)) this.useAbility(STARTING_ABILITIES[index]);
     });
+
+    if (Phaser.Input.Keyboard.JustDown(this.observeKey)) this.tryObserve();
+  }
+
+  private npcDistance(): number {
+    return Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, this.npc.x, this.npc.y);
+  }
+
+  private inObservationRange(): boolean {
+    return isInObservationRange(this.npcDistance(), this.npcContent.observation.range);
+  }
+
+  private tryObserve(): void {
+    if (this.observationSession.status === 'observing') {
+      this.hud.setStatus('Still observing Nora… stay close and watch the eye button.');
+      return;
+    }
+
+    const inRange = this.inObservationRange();
+    if (!canStartObservation(this.observationSession, inRange)) {
+      this.hud.setStatus('Move closer to Nora before observing.');
+      return;
+    }
+
+    if (!findNextUndiscoveredClue(this.npcContent.clues, this.discoveryState)) {
+      this.hud.setStatus('You already found every clue. Tap 🧩 to review them, then try a scare!');
+      return;
+    }
+
+    this.observationSession = startObservation(this.observationSession);
+    this.hud.setStatus('Observing Nora… stay nearby. One new clue will appear when the eye fills.');
+    this.refreshObservationHud();
+  }
+
+  private updateObservation(delta: number): void {
+    const wasObserving = this.observationSession.status === 'observing';
+
+    if (!wasObserving) {
+      this.refreshObservationHud();
+      return;
+    }
+
+    const inRange = this.inObservationRange();
+    const tick = tickObservation(
+      this.observationSession,
+      delta,
+      this.npcContent.observation.durationMs,
+      inRange,
+      this.npcContent.clues,
+      this.discoveryState,
+    );
+
+    this.observationSession = tick.session;
+
+    if (tick.newlyRevealedClueIds.length > 0) {
+      for (const clueId of tick.newlyRevealedClueIds) {
+        this.discoveryState = discoverClue(this.discoveryState, clueId);
+      }
+      const latestId = tick.newlyRevealedClueIds[tick.newlyRevealedClueIds.length - 1];
+      const clue = this.npcContent.clues.find((entry) => entry.id === latestId);
+      if (clue) {
+        this.npc.showObservationReaction(this.clueReaction(clue));
+        const moreLeft = findNextUndiscoveredClue(this.npcContent.clues, this.discoveryState);
+        const followUp = moreLeft
+          ? ' Observe again for another clue.'
+          : ' That was the last clue — try a scare!';
+        this.hud.setClueStatus(`New clue: ${clue.text}${followUp}`);
+      }
+      this.hud.setClueEntries(this.npcContent.clues, this.discoveryState.discoveredClueIds);
+    } else if (this.observationSession.status === 'idle') {
+      if (!inRange) {
+        this.hud.setStatus('Observation cancelled — you moved too far. Clues you found are saved.');
+      }
+    }
+
+    this.refreshObservationHud();
+  }
+
+  private clueReaction(clue: ClueDefinition): string {
+    switch (clue.category) {
+      case 'dialogue':
+        return clue.personalityOnly ? 'Hmm… organised!' : 'Did she just say that?';
+      case 'body_language':
+        return 'She looks nervously around…';
+      case 'nearby_object':
+        return 'Something nearby catches her eye.';
+      case 'environmental_reaction':
+        return 'The room makes her jump!';
+    }
+  }
+
+  private toggleCluePanel(): void {
+    const open = this.hud.toggleCluePanel();
+    this.hud.setClueEntries(this.npcContent.clues, this.discoveryState.discoveredClueIds);
+    if (open && this.discoveryState.discoveredClueIds.length === 0) {
+      this.hud.setStatus('No clues yet — observe Nora while staying close.');
+    }
+  }
+
+  private refreshObservationHud(): void {
+    this.hud.setObserveState(
+      this.inObservationRange(),
+      this.observationSession.status === 'observing',
+      this.observationSession.progress,
+    );
   }
 
   private updatePinchZoom(): void {
@@ -227,9 +364,17 @@ export class GameScene extends Phaser.Scene {
     this.npc.scareHistory.usesByCategory[ability.category] =
       (this.npc.scareHistory.usesByCategory[ability.category] ?? 0) + 1;
 
+    const bonus = applyObservationBonus(
+      this.discoveryState,
+      ability.category,
+      this.npcContent.primaryFear,
+      this.npcContent.clues,
+    );
+    this.discoveryState = bonus.discovery;
+
     const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
     this.npc.syncFear(fear, getFearStage(fear));
-    this.score = Math.max(0, this.score + result.scoreDelta);
+    this.score = Math.max(0, this.score + result.scoreDelta + bonus.bonus);
 
     const failed = result.strength === 'none';
     if (failed) this.ghost.showFailedScareGlimpse();
@@ -244,7 +389,8 @@ export class GameScene extends Phaser.Scene {
     const repetitionNote = result.noveltyMultiplier < 1
       ? ` Novelty is down to ${Math.round(result.noveltyMultiplier * 100)}%.`
       : '';
-    this.hud.setStatus(`${ability.name}: ${result.reaction}${repetitionNote}`);
+    const bonusNote = bonus.bonus > 0 ? ` Observation bonus +${bonus.bonus}!` : '';
+    this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${repetitionNote}`);
     this.updateHud();
 
     if (this.npc.stage === 'possessed') {

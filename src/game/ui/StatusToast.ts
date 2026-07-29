@@ -3,6 +3,7 @@ import { PALETTE } from '../visuals/lobbyTheme';
 import { drawRoundedPanel } from './hudDraw';
 
 const VISIBLE_MS = 3200;
+const CLUE_VISIBLE_MS = 6500;
 
 /**
  * Transient status feedback. Messages explain what happened and then clear
@@ -36,7 +37,7 @@ export class StatusToast extends Phaser.GameObjects.Container {
     this.redraw();
   }
 
-  show(message: string): void {
+  show(message: string, durationMs = VISIBLE_MS): void {
     this.label.setText(message);
     this.redraw();
 
@@ -44,9 +45,13 @@ export class StatusToast extends Phaser.GameObjects.Container {
     this.scene.tweens.killTweensOf(this);
     this.setAlpha(1);
 
-    this.hideEvent = this.scene.time.delayedCall(VISIBLE_MS, () => {
+    this.hideEvent = this.scene.time.delayedCall(durationMs, () => {
       this.scene.tweens.add({ targets: this, alpha: 0, duration: 420, ease: 'Sine.In' });
     });
+  }
+
+  showClue(message: string): void {
+    this.show(message, CLUE_VISIBLE_MS);
   }
 
   private redraw(): void {
