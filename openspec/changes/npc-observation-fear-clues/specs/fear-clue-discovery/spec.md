@@ -9,7 +9,7 @@ Each target NPC SHALL be defined with strongly typed, reusable content that incl
 - **AND** the scene does not hard-code Nora's clue strings as permanent scene logic
 
 ### Requirement: Progressive clue discovery
-Observation SHALL reveal clues progressively rather than all at once. The game SHALL NOT display the NPC's primary hidden fear label as a direct spoiler before the player has had the chance to discover the authored useful clues. Duplicate discovery of the same clue in a round SHALL be prevented.
+Observation SHALL reveal clues progressively rather than all at once. The game SHALL NOT display the NPC's primary hidden fear label as a direct spoiler before the player has had the chance to discover the authored useful clues. Duplicate discovery of the same clue in the active haunting session SHALL be prevented.
 
 #### Scenario: Clues unlock over observation progress
 - **GIVEN** Nora has multiple authored clues with reveal thresholds
@@ -22,35 +22,36 @@ Observation SHALL reveal clues progressively rather than all at once. The game S
 - **WHEN** the clue UI is shown
 - **THEN** it does not directly name Nora's primary fear as a completed answer label
 
-### Requirement: Round-scoped discovery state
-Discovered clues SHALL be recorded for the current haunting round and remain available for review until the round resets. Starting a new haunting round SHALL clear discovery state.
+### Requirement: Active-haunting-session discovery state
+Discovered clues SHALL be recorded for the active haunting session and remain available for review until that session ends. Discovery state and observation-bonus eligibility SHALL reset when the haunting session is restarted or a new scene session begins. This change SHALL NOT introduce a separate restart/new-round player flow solely for observation.
 
-#### Scenario: Clues persist for the round
+#### Scenario: Clues persist for the active session
 - **GIVEN** the player has discovered one or more clues
-- **WHEN** they stop observing and continue playing in the same round
+- **WHEN** they stop observing and continue playing in the same active haunting session
 - **THEN** those clues remain available for review
 
-#### Scenario: New round clears discoveries
-- **GIVEN** clues were discovered in a previous round
-- **WHEN** a new haunting round begins
+#### Scenario: Session restart clears discoveries
+- **GIVEN** clues were discovered in the active haunting session
+- **WHEN** the haunting session is restarted or a new scene session begins
 - **THEN** discovery state is reset
-- **AND** the observation bonus eligibility for that round is reset
+- **AND** observation bonus eligibility for the new session is reset
 
 ### Requirement: Compact accessible clue review
-The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls or block primary movement input on landscape phones.
+The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls, the Observe HUD button, or block primary movement input on landscape phones.
 
 #### Scenario: Player reviews clues before a scare
 - **WHEN** the player opens the clue review UI after discovering clues
 - **THEN** each discovered clue shows accessible text and a non-colour-only category cue
 - **AND** the scare action grid remains reachable
+- **AND** the Observe HUD button remains reachable
 - **AND** the play area remains usable for movement outside the panel
 
 ### Requirement: Observation bonus for informed matching scare
-When the player uses a scare that matches the NPC's primary hidden fear after discovering at least one useful (non-personality-only) clue this round, the game SHALL award a small observation score bonus at most once per round. The bonus SHALL NOT change fear gain, novelty, energy spend, or ineffective-scare penalties. Observation itself SHALL never deduct score or energy.
+When the player uses a scare that matches the NPC's primary hidden fear after discovering at least one useful (non-personality-only) clue in the active haunting session, the game SHALL award a small observation score bonus at most once per active haunting session. The bonus SHALL NOT change fear gain, novelty, energy spend, or ineffective-scare penalties. Observation itself SHALL never deduct score or energy.
 
 #### Scenario: Matching scare after observation earns a small bonus
-- **GIVEN** the player has discovered at least one useful clue about Nora this round
-- **AND** the observation bonus has not yet been granted this round
+- **GIVEN** the player has discovered at least one useful clue about Nora in the active haunting session
+- **AND** the observation bonus has not yet been granted in this session
 - **WHEN** they successfully use the scare matching Nora's primary fear within range
 - **THEN** the existing successful-scare outcome still applies
 - **AND** a small additional observation score bonus is granted once
@@ -61,8 +62,8 @@ When the player uses a scare that matches the NPC's primary hidden fear after di
 - **THEN** existing penalty, resistance, novelty, and failed-scare glimpse behaviour still apply
 - **AND** no observation bonus is granted
 
-#### Scenario: Bonus not granted twice in one round
-- **GIVEN** the observation bonus was already granted this round
+#### Scenario: Bonus not granted twice in one session
+- **GIVEN** the observation bonus was already granted in the active haunting session
 - **WHEN** the player again uses the matching primary-fear scare
 - **THEN** no second observation bonus is granted
 - **AND** normal scare scoring and novelty still apply
@@ -72,4 +73,4 @@ Observation bonus eligibility, clue progression, and discovery state updates SHA
 
 #### Scenario: Domain rules are unit-tested
 - **WHEN** developers run the project's unit tests
-- **THEN** progressive discovery, duplicate prevention, round reset, fear matching for bonus eligibility, and interrupt behaviour are covered without requiring Phaser
+- **THEN** progressive discovery, duplicate prevention, active-session reset, fear matching for bonus eligibility, and leave-range cancel behaviour are covered without requiring Phaser
