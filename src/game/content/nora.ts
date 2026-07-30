@@ -29,27 +29,27 @@ export const NORA_CONTENT: NpcContent = {
     {
       id: 'nora-whisper-mutter',
       category: 'dialogue',
-      text: 'She mutters, "Please… no quiet voices sneaking up on me."',
+      text: '"Please… no quiet voices near me."',
       // Each clue unlocks near the end of its own Observe pass.
       revealAtProgress: 0.85,
     },
     {
       id: 'nora-organised-hum',
       category: 'dialogue',
-      text: 'She hums while lining up guest keys — very organised!',
+      text: 'Hums while lining up keys — so organised!',
       revealAtProgress: 0.85,
       personalityOnly: true,
     },
     {
       id: 'nora-quiet-glance',
       category: 'body_language',
-      text: 'She cups her ear and flinches when someone speaks softly behind her.',
+      text: 'Cups her ear — soft voices make her flinch.',
       revealAtProgress: 0.85,
     },
     {
       id: 'nora-trolley-wobble',
       category: 'nearby_object',
-      text: 'A trolley wobbles nearby — she giggles and steadies it. Moving things do not bother her.',
+      text: 'Trolley wobbles — she giggles. Moving stuff? Fine.',
       revealAtProgress: 0.85,
     },
   ],

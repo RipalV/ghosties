@@ -140,7 +140,7 @@ export class DomHudControls {
 
     const observeWrap = document.createElement('div');
     observeWrap.className = 'dom-hud-observe-wrap';
-    this.observeButton = makeActionButton('👁', 'Observe Nora');
+    this.observeButton = makeActionButton('👁', 'Observe visitor');
     this.observeButton.classList.add('dom-hud-observe-button');
     this.observeRangeMark = document.createElement('span');
     this.observeRangeMark.className = 'dom-hud-observe-range';
@@ -329,6 +329,16 @@ export class DomHudControls {
     this.zoomOutButton.disabled = !canZoomOut;
   }
 
+  setObserveLabel(visitorName: string): void {
+    this.observeButton.title = `Observe ${visitorName}`;
+    this.observeButton.setAttribute('aria-label', `Observe ${visitorName}`);
+  }
+
+  setObjectiveText(text: string): void {
+    this.objectiveButton.title = text;
+    this.objectiveButton.setAttribute('aria-label', text);
+  }
+
   setObserveState(inRange: boolean, observing: boolean, progress: number): void {
     const visible = inRange || observing;
     this.observeButton.style.opacity = visible ? '1' : '0.65';
@@ -443,7 +453,7 @@ export class DomHudControls {
 
     const tip = document.createElement('p');
     tip.className = 'dom-results-tip';
-    tip.textContent = `Ghost tip: ${summary.tip}`;
+    tip.textContent = `Tip: ${summary.tip}`;
     this.resultsBody.append(tip);
 
     this.resultsOverlay.hidden = false;

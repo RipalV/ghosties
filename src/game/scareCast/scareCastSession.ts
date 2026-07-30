@@ -1,5 +1,5 @@
 /** Shared cast wind-up for Whisper, Cold Puff, and Object Nudge. */
-export const SCARE_CAST_DURATION_MS = 1500;
+export const SCARE_CAST_DURATION_MS = 2200;
 
 export interface ScareCastSession {
   readonly status: 'idle' | 'casting';

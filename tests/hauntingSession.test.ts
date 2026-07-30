@@ -13,7 +13,7 @@ import {
 } from '../src/game/session/hauntingSession';
 import { resetSessionForNewVisit } from '../src/game/session/sessionReset';
 import { isVisitorTargetable, targetableGateStatus } from '../src/game/session/targetableGate';
-import { buildVisitResults } from '../src/game/session/visitResults';
+import { buildVisitResults, gradeForFearStage } from '../src/game/session/visitResults';
 import {
   shouldDepartOnRouteComplete,
   shouldDepartOnSuccess,
@@ -68,8 +68,8 @@ describe('visitor presence vs fear', () => {
   });
 
   it('returns friendly gate copy without relying on fear stage', () => {
-    expect(targetableGateStatus('visitorAnnounced', 'offsite')).toContain('Ding-dong');
-    expect(targetableGateStatus('visitorDeparting', 'departing')).toContain('leaving');
+    expect(targetableGateStatus('visitorAnnounced', 'offsite', 'Nora')).toContain('Ding-dong');
+    expect(targetableGateStatus('visitorDeparting', 'departing', 'Nora')).toContain('leaving');
   });
 });
 
@@ -128,10 +128,40 @@ describe('visit results', () => {
       discoveredClueIds: [],
       clues: NORA_CONTENT.clues,
     });
-    expect(escaped.outcomeLabel).toBe('Close call');
-    expect(escaped.headline).toContain('barely spooked');
-    expect(escaped.notes.length).toBeGreaterThan(0);
+    expect(escaped.outcomeLabel).toBe('Side-eye spook');
+    expect(escaped.headline).toContain('curious');
+    expect(escaped.notes.length).toBe(1);
+    expect(escaped.notes[0]).toContain('mix it up');
     expect(escaped.cluesTitle.toLowerCase()).toContain('secret');
+    expect(escaped.tip.length).toBeLessThan(50);
+  });
+
+  it('grades each fear stage with distinct fun outcomes', () => {
+    expect(gradeForFearStage('calm').outcomeLabel).toBe('Ice cold');
+    expect(gradeForFearStage('curious').outcomeLabel).toBe('Side-eye spook');
+    expect(gradeForFearStage('uneasy').outcomeLabel).toBe('Jitters unlocked');
+    expect(gradeForFearStage('frightened').outcomeLabel).toBe('Big scares!');
+    expect(gradeForFearStage('runaway').outcomeLabel).toBe('Almost bolted!');
+    expect(gradeForFearStage('swoon').outcomeLabel).toBe('Wobble zone');
+    expect(gradeForFearStage('possessed').outcomeLabel).toBe('Epic haunt!');
+  });
+
+  it('keeps headlines short and punchy', () => {
+    const swoon = buildVisitResults({
+      visitorName: 'Nora',
+      outcome: 'unimpressed',
+      finalFearStage: 'swoon',
+      finalFear: 85,
+      score: 112,
+      observationBonusTotal: 5,
+      ineffectiveScareCount: 0,
+      repeatedScareCount: 7,
+      discoveredClueIds: [NORA_CONTENT.clues[0].id],
+      clues: NORA_CONTENT.clues,
+    });
+    expect(swoon.headline.length).toBeLessThan(55);
+    expect(swoon.notes).toHaveLength(1);
+    expect(swoon.cluesTitle).toBe('Secrets');
   });
 });
 
@@ -181,6 +211,7 @@ describe('visitor route progression', () => {
     });
     expect(tick.state.routeComplete).toBe(true);
     expect(tick.state.poiIndex).toBe(NORA_VISIT.pointsOfInterest.length);
+    expect(tick.state.pauseRemainingMs).toBe(0);
   });
 
   it('walks to exit while departing', () => {

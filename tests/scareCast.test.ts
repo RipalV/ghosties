@@ -157,7 +157,7 @@ describe('scare cast session', () => {
       status: 'casting' as const,
       abilityId: whisper.id,
       progress: 0.5,
-      exposureMs: 750,
+      exposureMs: SCARE_CAST_DURATION_MS / 2,
     };
     expect(exposureRatioFromSession(session, SCARE_CAST_DURATION_MS)).toBe(0.5);
   });

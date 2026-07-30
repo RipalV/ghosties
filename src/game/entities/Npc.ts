@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { NORA_CONTENT } from '../content/nora';
+import type { VisitorDefinition } from '../content/visitorRegistry';
 import type { FearProfile, FearStage, ScareHistory } from '../fear/FearEngine';
 import { CharacterMarker } from '../visuals/CharacterMarker';
-import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
+import { HUD_LAYOUT } from '../visuals/lobbyTheme';
 import { cssToWorldUnits, fitsAboveHead } from '../visuals/overheadPlacement';
 import { MOVEMENT } from '../world/lobbyLayout';
 
@@ -26,6 +26,9 @@ const FACE_BY_STAGE: Record<FearStage, string> = {
   possessed: '◉ᴗ◉',
 };
 
+/** Walk speed multiplier while heading for the exit after a visit ends. */
+export const DEPARTURE_SPEED_MULTIPLIER = 2.2;
+
 export const NPC_MAX_FEAR = 100;
 
 const BUBBLE_ABOVE_Y = -96;
@@ -37,48 +40,37 @@ const TOP_HUD_CLEARANCE_CSS =
   HUD_LAYOUT.padding + Math.max(HUD_LAYOUT.chipHeight, HUD_LAYOUT.objectiveSize) + 8;
 
 export class Npc extends Phaser.GameObjects.Container {
-  readonly fearProfile: FearProfile = NORA_CONTENT.fearProfile;
+  fearProfile: FearProfile;
 
   readonly scareHistory: ScareHistory = { usesByCategory: {} };
   fear = 0;
   stage: FearStage = 'calm';
 
+  private readonly bodyGraphics: Phaser.GameObjects.Graphics;
   private readonly bodyShape: Phaser.GameObjects.Arc;
   private readonly face: Phaser.GameObjects.Text;
   private readonly marker: CharacterMarker;
   private readonly reactionBubble: Phaser.GameObjects.Text;
   private readonly shadow: Phaser.GameObjects.Ellipse;
-  private moveSpeed = MOVEMENT.npcSpeed;
+  private palette: VisitorDefinition['palette'];
+  private moveSpeed: number = MOVEMENT.npcSpeed;
   private pausedUntil = 0;
   private wasMoving = false;
   private scareCastReactionActive = false;
   private scareCastTween?: Phaser.Tweens.Tween;
   private visitArrivalThreshold = 8;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, visitor: VisitorDefinition) {
     super(scene, x, y);
+
+    this.fearProfile = visitor.content.fearProfile;
+    this.palette = visitor.palette;
 
     this.shadow = scene.add.ellipse(0, 34, 48, 18, 0x000000, 0.24);
 
-    const body = scene.add.graphics();
-    body.fillStyle(PALETTE.noraDress, 1);
-    body.lineStyle(2, PALETTE.noraTrim, 0.9);
-    body.beginPath();
-    body.moveTo(-13, -2);
-    body.lineTo(13, -2);
-    body.lineTo(20, 30);
-    body.lineTo(-20, 30);
-    body.closePath();
-    body.fillPath();
-    body.strokePath();
-    body.fillStyle(PALETTE.noraSkin, 1);
-    body.fillCircle(-15, 8, 5);
-    body.fillCircle(15, 8, 5);
-    body.fillStyle(PALETTE.noraTrim, 1);
-    body.fillCircle(0, -12, 24);
-
-    this.bodyShape = scene.add.circle(0, -6, 22, PALETTE.noraSkin, 1);
-    this.bodyShape.setStrokeStyle(3, PALETTE.noraTrim, 1);
+    this.bodyGraphics = scene.add.graphics();
+    this.bodyShape = scene.add.circle(0, -6, 22, visitor.palette.skin, 1);
+    this.bodyShape.setStrokeStyle(3, visitor.palette.trim, 1);
     this.face = scene.add.text(0, -7, FACE_BY_STAGE.calm, {
       fontFamily: 'Trebuchet MS',
       fontSize: '18px',
@@ -94,7 +86,9 @@ export class Npc extends Phaser.GameObjects.Container {
       wordWrap: { width: 200 },
     }).setOrigin(0.5).setVisible(false);
 
-    this.add([this.shadow, body, this.bodyShape, this.face, this.reactionBubble]);
+    this.drawBody();
+
+    this.add([this.shadow, this.bodyGraphics, this.bodyShape, this.face, this.reactionBubble]);
 
     this.marker = new CharacterMarker(scene, MARKER_ABOVE_Y, STAGE_WORDS.calm, true);
     this.add(this.marker);
@@ -114,6 +108,34 @@ export class Npc extends Phaser.GameObjects.Container {
     });
   }
 
+  applyVisitor(visitor: VisitorDefinition): void {
+    this.fearProfile = visitor.content.fearProfile;
+    this.palette = visitor.palette;
+    this.drawBody();
+    this.bodyShape.setFillStyle(this.palette.skin);
+    this.bodyShape.setStrokeStyle(3, this.palette.trim, 1);
+  }
+
+  private drawBody(): void {
+    const { dress, trim, skin } = this.palette;
+    this.bodyGraphics.clear();
+    this.bodyGraphics.fillStyle(dress, 1);
+    this.bodyGraphics.lineStyle(2, trim, 0.9);
+    this.bodyGraphics.beginPath();
+    this.bodyGraphics.moveTo(-13, -2);
+    this.bodyGraphics.lineTo(13, -2);
+    this.bodyGraphics.lineTo(20, 30);
+    this.bodyGraphics.lineTo(-20, 30);
+    this.bodyGraphics.closePath();
+    this.bodyGraphics.fillPath();
+    this.bodyGraphics.strokePath();
+    this.bodyGraphics.fillStyle(skin, 1);
+    this.bodyGraphics.fillCircle(-15, 8, 5);
+    this.bodyGraphics.fillCircle(15, 8, 5);
+    this.bodyGraphics.fillStyle(trim, 1);
+    this.bodyGraphics.fillCircle(0, -12, 24);
+  }
+
   resetForVisit(x: number, y: number): void {
     this.fear = 0;
     this.stage = 'calm';
@@ -122,7 +144,7 @@ export class Npc extends Phaser.GameObjects.Container {
     this.syncFear(0, 'calm');
     this.reactionBubble.setVisible(false);
     this.face.setText(FACE_BY_STAGE.calm);
-    this.bodyShape.setFillStyle(PALETTE.noraSkin);
+    this.bodyShape.setFillStyle(this.palette.skin);
     this.setScareCastReaction(false);
     this.setScale(1);
     this.wasMoving = false;
@@ -139,6 +161,7 @@ export class Npc extends Phaser.GameObjects.Container {
       pauseActive: boolean;
       visible: boolean;
       arrivalThreshold?: number;
+      speedMultiplier?: number;
     },
   ): void {
     this.setVisible(options.visible);
@@ -150,7 +173,8 @@ export class Npc extends Phaser.GameObjects.Container {
     }
 
     const threshold = options.arrivalThreshold ?? this.visitArrivalThreshold;
-    const moving = this.moveToward(options.targetX, options.targetY, deltaMs, threshold);
+    const speed = this.moveSpeed * (options.speedMultiplier ?? 1);
+    const moving = this.moveToward(options.targetX, options.targetY, deltaMs, threshold, speed);
 
     if (moving && !this.wasMoving) this.setScale(1.03);
     else if (!moving && this.wasMoving) this.setScale(1);
@@ -162,18 +186,19 @@ export class Npc extends Phaser.GameObjects.Container {
     targetY: number,
     deltaMs: number,
     threshold: number,
+    speed = this.moveSpeed,
   ): boolean {
     const direction = new Phaser.Math.Vector2(targetX - this.x, targetY - this.y);
     const distance = direction.length();
     if (distance < threshold) return false;
-    direction.normalize().scale(this.moveSpeed * (deltaMs / 1000));
+    direction.normalize().scale(speed * (deltaMs / 1000));
     this.x += direction.x;
     this.y += direction.y;
     return true;
   }
 
   /**
-   * Drops the marker and reaction bubble under Nora when she stands high in the
+   * Drops the marker and reaction bubble under the visitor when they stand high in the
    * view, where they would be clipped or hidden behind the top chips.
    */
   private placeOverheadBadges(): void {
@@ -215,7 +240,7 @@ export class Npc extends Phaser.GameObjects.Container {
     this.pausedUntil = this.scene.time.now + 1500;
 
     this.face.setText(failed ? '≧▽≦' : FACE_BY_STAGE[stage]);
-    this.bodyShape.setFillStyle(failed ? 0xffd68b : PALETTE.noraSkin);
+    this.bodyShape.setFillStyle(failed ? 0xffd68b : this.palette.skin);
 
     this.scene.tweens.add({
       targets: this,
@@ -229,7 +254,7 @@ export class Npc extends Phaser.GameObjects.Container {
     this.scene.time.delayedCall(1450, () => {
       this.reactionBubble.setVisible(false);
       if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
-      this.bodyShape.setFillStyle(PALETTE.noraSkin);
+      this.bodyShape.setFillStyle(this.palette.skin);
     });
   }
 
@@ -251,7 +276,7 @@ export class Npc extends Phaser.GameObjects.Container {
     });
   }
 
-  /** Mild mid-cast cue while Nora is still in range of the casting scare. */
+  /** Mild mid-cast cue while the visitor is still in range of the casting scare. */
   setScareCastReaction(active: boolean): void {
     if (active === this.scareCastReactionActive) return;
 
