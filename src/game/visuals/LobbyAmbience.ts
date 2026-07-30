@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { LOBBY_PROPS as HAUNTABLE_PROPS } from '../content/lobbyProps';
 import { floorDistance } from '../world/lobbyGeometry';
 import { FLOOR } from '../world/lobbyLayout';
 import { fillIsoDiamond } from './isoDraw';
@@ -6,18 +7,22 @@ import { LOBBY_PROPS, PALETTE } from './lobbyTheme';
 
 /**
  * Warm interior light pools, a cool moonlight wash, and a fixed pool of dust
- * motes. Interior light is deliberately warmer than the exterior so the lobby
- * reads as lit from within.
+ * motes. When the painted lobby art is active, lamp overlays stay subtle so they
+ * do not fight the artwork lighting.
  */
 export class LobbyAmbience {
   readonly container: Phaser.GameObjects.Container;
   private readonly motes: Phaser.GameObjects.Arc[] = [];
   private readonly moteVelocity: { x: number; y: number }[] = [];
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, paintedLobby = false) {
     this.container = scene.add.container(0, 0).setDepth(6);
-    this.drawLightPools(scene);
-    this.drawMoonWash(scene);
+    if (paintedLobby) {
+      this.drawPaintedLobbyGlow(scene);
+    } else {
+      this.drawLightPools(scene);
+      this.drawMoonWash(scene);
+    }
     this.createMotes(scene);
   }
 
@@ -41,13 +46,24 @@ export class LobbyAmbience {
     }
   }
 
+  private drawPaintedLobbyGlow(scene: Phaser.Scene): void {
+    const g = scene.add.graphics();
+    // Soft warm accents near hauntable landmarks — shape + motion via motes,
+    // not colour-only permanent labels.
+    for (const prop of HAUNTABLE_PROPS) {
+      const alpha = prop.visualKey === 'fireplace' ? 0.1 : 0.05;
+      g.fillStyle(PALETTE.lampWarm, alpha);
+      g.fillEllipse(prop.position.x, prop.position.y + 8, 120, 56);
+    }
+    this.container.add(g);
+  }
+
   private drawLightPools(scene: Phaser.Scene): void {
     const g = scene.add.graphics();
 
     for (const prop of LOBBY_PROPS) {
       if (prop.kind !== 'lamp') continue;
 
-      // A warm pool on the floor beneath each lamp.
       fillIsoDiamond(g, { x: prop.x, y: prop.y + 10, width: 300, depth: 140 }, PALETTE.lampWarm, 0.12);
       fillIsoDiamond(g, { x: prop.x, y: prop.y + 10, width: 190, depth: 88 }, PALETTE.lampWarm, 0.1);
     }
@@ -74,8 +90,6 @@ export class LobbyAmbience {
     const g = scene.add.graphics();
     const pool = { x: FLOOR.centerX + 190, y: FLOOR.centerY - 60 };
 
-    // Cool light spilling from the window, kept as soft floor pools so it never
-    // looks like a hard pane of glass standing in the room.
     fillIsoDiamond(g, { x: pool.x, y: pool.y, width: 360, depth: 168 }, PALETTE.moonlight, 0.06);
     fillIsoDiamond(g, { x: pool.x - 20, y: pool.y + 40, width: 230, depth: 108 }, PALETTE.moonlight, 0.05);
 

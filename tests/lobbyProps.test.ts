@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LOBBY_PROPS, LOBBY_PROP_COMBO_BONUS } from '../src/game/content/lobbyProps';
 import { NORA_VISIT } from '../src/game/content/noraVisit';
 import { MILO_VISIT } from '../src/game/content/miloVisit';
+import { artPointToWorld, LOBBY_ART_SPOTS } from '../src/game/world/lobbyArtLayout';
 import { resolveScare } from '../src/game/fear/FearEngine';
 import { NORA_CONTENT } from '../src/game/content/nora';
 import { scaleScareResult } from '../src/game/scareCast/scareCastExposure';
@@ -225,7 +226,24 @@ describe('visitor route prop proximity', () => {
   });
 
   it('places Milo near the drafty fireplace POI within reaction radius', () => {
-    const poiFireplace = MILO_VISIT.pointsOfInterest[1];
+    const poiFireplace = MILO_VISIT.pointsOfInterest[0];
     expect(isWithinRadius(poiFireplace, fireplace.position, fireplace.visitorReactionRadius)).toBe(true);
   });
 });
+
+describe('visitor entry portals', () => {
+  it('sends Nora through the front doors, not the stairs', () => {
+    const door = artPointToWorld(LOBBY_ART_SPOTS.doorLanding.x, LOBBY_ART_SPOTS.doorLanding.y);
+    const stairs = artPointToWorld(LOBBY_ART_SPOTS.stairsLanding.x, LOBBY_ART_SPOTS.stairsLanding.y);
+    expect(isWithinRadius(NORA_VISIT.entrance, door, 40)).toBe(true);
+    expect(isWithinRadius(NORA_VISIT.entrance, stairs, 120)).toBe(false);
+  });
+
+  it('sends Milo down the stairs, not the front doors', () => {
+    const door = artPointToWorld(LOBBY_ART_SPOTS.doorLanding.x, LOBBY_ART_SPOTS.doorLanding.y);
+    const stairs = artPointToWorld(LOBBY_ART_SPOTS.stairsLanding.x, LOBBY_ART_SPOTS.stairsLanding.y);
+    expect(isWithinRadius(MILO_VISIT.entrance, stairs, 40)).toBe(true);
+    expect(isWithinRadius(MILO_VISIT.entrance, door, 120)).toBe(false);
+  });
+});
+
