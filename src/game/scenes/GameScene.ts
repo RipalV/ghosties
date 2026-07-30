@@ -67,6 +67,13 @@ export class GameScene extends Phaser.Scene {
   private energy = 100;
   private observationSession: ObservationSession = createObservationSession();
   private scareCastSession: ScareCastSession = createScareCastSession();
+  /** Last in-range sample while a scare cast is active (for leave-range status). */
+  private scareCastWasInRange = false;
+  /** Avoids per-frame DOM writes while a scare cast ring is filling. */
+  private lastScareCastHudPercent = -1;
+  private lastScareCastHudIndex: number | null = null;
+  /** Tracks Nora mid-cast reaction so we only update on range transitions. */
+  private scareCastNoraInRange = false;
   private discoveryState: DiscoveryState = createDiscoveryState();
   private readonly npcContent = NORA_CONTENT;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -244,6 +251,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.scareCastSession.status === 'casting') {
       this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
       this.refreshScareCastHud();
     }
 
@@ -333,33 +341,53 @@ export class GameScene extends Phaser.Scene {
     return isInAbilityRange(this.npcDistance(), ability.range);
   }
 
-  private refreshScareCastHud(): void {
-    if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
-      this.hud.setScareCastState(null, 0);
-      this.refreshScareCastPresentation();
-      return;
-    }
-    const index = this.abilityIndex(this.scareCastSession.abilityId);
-    this.hud.setScareCastState(index >= 0 ? index : null, this.scareCastSession.progress);
-    this.refreshScareCastPresentation();
+  private resetScareCastHudCache(): void {
+    this.lastScareCastHudPercent = -1;
+    this.lastScareCastHudIndex = null;
   }
 
-  private refreshScareCastPresentation(): void {
-    const casting =
-      this.scareCastSession.status === 'casting' && this.scareCastSession.abilityId !== null;
+  private syncScareCastPresentation(casting: boolean, noraInRange: boolean): void {
     this.ghost.setCastingPresentation(casting);
 
     if (!casting) {
-      this.npc.setScareCastReaction(false);
+      if (this.scareCastNoraInRange) {
+        this.npc.setScareCastReaction(false);
+        this.scareCastNoraInRange = false;
+      }
       return;
     }
 
-    const ability = STARTING_ABILITIES.find((entry) => entry.id === this.scareCastSession.abilityId);
-    this.npc.setScareCastReaction(ability ? this.inAbilityRange(ability) : false);
+    if (noraInRange !== this.scareCastNoraInRange) {
+      this.npc.setScareCastReaction(noraInRange);
+      this.scareCastNoraInRange = noraInRange;
+    }
+  }
+
+  private refreshScareCastHud(inRange = false): void {
+    if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
+      if (this.lastScareCastHudIndex !== null) {
+        this.hud.setScareCastState(null, 0);
+        this.resetScareCastHudCache();
+      }
+      this.syncScareCastPresentation(false, false);
+      return;
+    }
+
+    const index = this.abilityIndex(this.scareCastSession.abilityId);
+    const hudIndex = index >= 0 ? index : null;
+    const percent = Math.round(this.scareCastSession.progress * 100);
+    if (hudIndex !== this.lastScareCastHudIndex || percent !== this.lastScareCastHudPercent) {
+      this.hud.setScareCastState(hudIndex, this.scareCastSession.progress);
+      this.lastScareCastHudIndex = hudIndex;
+      this.lastScareCastHudPercent = percent;
+    }
+
+    this.syncScareCastPresentation(true, inRange);
   }
 
   private updateScareCast(delta: number): void {
     if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
+      this.scareCastWasInRange = false;
       this.refreshScareCastHud();
       return;
     }
@@ -367,11 +395,21 @@ export class GameScene extends Phaser.Scene {
     const ability = STARTING_ABILITIES.find((entry) => entry.id === this.scareCastSession.abilityId);
     if (!ability) {
       this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
       this.refreshScareCastHud();
       return;
     }
 
     const inRange = this.inAbilityRange(ability);
+    if (!this.scareCastWasInRange && inRange) {
+      this.hud.setStatus(`${ability.name} casting… Nora is in the spooky zone!`);
+    } else if (this.scareCastWasInRange && !inRange) {
+      this.hud.setStatus(
+        `${ability.name} casting… Nora left the spooky zone — get closer to expose her.`,
+      );
+    }
+    this.scareCastWasInRange = inRange;
+
     const tick = tickScareCast(
       this.scareCastSession,
       delta,
@@ -381,6 +419,7 @@ export class GameScene extends Phaser.Scene {
     this.scareCastSession = tick.session;
 
     if (tick.completedAbilityId !== null && tick.exposureRatio !== null) {
+      this.scareCastWasInRange = false;
       const completed = STARTING_ABILITIES.find((entry) => entry.id === tick.completedAbilityId);
       if (completed) {
         if (shouldApplyScareOutcome(tick.exposureRatio)) {
@@ -391,7 +430,9 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.refreshScareCastHud();
+    const stillCasting =
+      this.scareCastSession.status === 'casting' && this.scareCastSession.abilityId !== null;
+    this.refreshScareCastHud(stillCasting ? inRange : false);
   }
 
   private useAbility(ability: ScareAbility): void {
@@ -417,6 +458,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.scareCastSession = start.session;
+    this.scareCastWasInRange = inRange;
 
     if (start.switchedFromAbilityId) {
       const previous = STARTING_ABILITIES.find((entry) => entry.id === start.switchedFromAbilityId);
@@ -428,7 +470,8 @@ export class GameScene extends Phaser.Scene {
       this.hud.setStatus(`Casting ${ability.name}… get closer to affect Nora.`);
     }
 
-    this.refreshScareCastHud();
+    this.resetScareCastHudCache();
+    this.refreshScareCastHud(inRange);
   }
 
   private resolveScare(ability: ScareAbility, exposureRatio: number): void {

@@ -20,6 +20,11 @@ export function shouldApplyScareOutcome(exposureRatio: number): boolean {
   return exposureRatio > 0;
 }
 
+/**
+ * Scales a resolved scare by exposure. Callers that skip zero-exposure entirely
+ * (via `shouldApplyScareOutcome`) never need the miss branch; it remains for
+ * pure helper completeness and unit tests.
+ */
 export function scaleScareResult(result: ScareResult, exposureRatio: number): ScareResult {
   const kind = classifyExposureOutcome(exposureRatio);
 

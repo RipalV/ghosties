@@ -50,3 +50,15 @@
 - **AND** Nora does not gain fear from that scare
 - **AND** Nora does not show a resolve reaction
 - **AND** the status UI explains she was never in range
+
+#### Scenario: Reduced movement speed while casting
+
+- **GIVEN** a scare cast is in progress
+- **WHEN** the player moves the ghost with keyboard or pointer
+- **THEN** the ghost travels at roughly one-eighth the world speed used when not casting
+
+#### Scenario: Cast end eases speed back
+
+- **GIVEN** a scare cast ends
+- **WHEN** the player moves the ghost
+- **THEN** travel speed eases back to normal over a short transition

@@ -4,6 +4,7 @@ import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
 import { cssToWorldUnits, fitsAboveHead } from '../visuals/overheadPlacement';
 import { clampToFloor } from '../world/lobbyGeometry';
 import { MOVEMENT } from '../world/lobbyLayout';
+import { ghostTravelSpeed, tickGhostSpeedMultiplier } from '../scareCast/ghostCastMovement';
 
 const MARKER_ABOVE_Y = -74;
 const MARKER_BELOW_Y = 70;
@@ -23,6 +24,7 @@ export class Ghost extends Phaser.GameObjects.Container {
   private glimpseTween?: Phaser.Tweens.Tween;
   private wasMoving = false;
   private castingPresentation = false;
+  private speedMultiplier = 1;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -83,11 +85,19 @@ export class Ghost extends Phaser.GameObjects.Container {
     this.placeMarker();
 
     const seconds = deltaMs / 1000;
+    this.speedMultiplier = tickGhostSpeedMultiplier(
+      this.speedMultiplier,
+      this.castingPresentation,
+      MOVEMENT.ghostCastSpeedMultiplier,
+      deltaMs,
+      MOVEMENT.ghostCastSpeedTransitionMs,
+    );
+    const speed = ghostTravelSpeed(this.speed, this.speedMultiplier);
     const keyboard = this.keyboardDirection.clone();
     let moving = false;
 
     if (keyboard.lengthSq() > 0) {
-      keyboard.normalize().scale(this.speed * seconds);
+      keyboard.normalize().scale(speed * seconds);
       this.moveWithinFloor(this.x + keyboard.x, this.y + keyboard.y);
       this.target.set(this.x, this.y);
       moving = true;
@@ -95,16 +105,16 @@ export class Ghost extends Phaser.GameObjects.Container {
       const direction = this.target.clone().subtract(new Phaser.Math.Vector2(this.x, this.y));
       const distance = direction.length();
       if (distance >= 5) {
-        direction.normalize().scale(Math.min(distance, this.speed * seconds));
+        direction.normalize().scale(Math.min(distance, speed * seconds));
         this.moveWithinFloor(this.x + direction.x, this.y + direction.y);
         moving = true;
       }
     }
 
     if (moving && !this.wasMoving) {
-      this.setScale(this.castingPresentation ? 1.08 : 1.04);
+      this.bodyShape.setScale(1.04);
     } else if (!moving && this.wasMoving) {
-      this.setScale(this.castingPresentation ? 1.08 : 1);
+      this.bodyShape.setScale(1);
     }
     this.wasMoving = moving;
   }
@@ -116,15 +126,16 @@ export class Ghost extends Phaser.GameObjects.Container {
 
     if (active) {
       this.glimpseTween?.stop();
+      this.setScale(1);
       this.face.setText('◕‿◕');
       this.marker.setLabel('CASTING');
       this.setAlpha(0.92);
-      this.setScale(this.wasMoving ? 1.08 : 1.08);
       return;
     }
 
     this.setAlpha(0.78);
-    this.setScale(this.wasMoving ? 1.04 : 1);
+    this.setScale(1);
+    this.bodyShape.setScale(this.wasMoving ? 1.04 : 1);
     this.face.setText('•ᴗ•');
     this.marker.setLabel('HIDDEN');
   }

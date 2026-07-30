@@ -24,3 +24,14 @@ During the scare performing phase, the ghost SHALL look like it is casting wheth
 - **THEN** the ghost shows a casting presentation
 - **AND** Nora shows a mild mid-cast reaction
 - **AND** both remain suitable for ages 7+
+
+#### Scenario: Movement slows while performing
+- **GIVEN** the ghost can move at normal speed before casting
+- **WHEN** a scare cast is in progress and the player keeps moving
+- **THEN** ghost world travel speed eases down to roughly one-eighth the non-casting speed
+- **AND** the casting presentation remains visible
+
+#### Scenario: Speed eases back after cast
+- **GIVEN** a scare cast completes, is switched, or is cancelled
+- **WHEN** the player keeps moving
+- **THEN** ghost world travel speed eases back to normal over a short transition rather than snapping instantly

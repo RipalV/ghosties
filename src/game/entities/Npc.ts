@@ -232,7 +232,6 @@ export class Npc extends Phaser.GameObjects.Container {
     if (active === this.scareCastReactionActive) return;
 
     if (active) {
-      if (this.scene.time.now < this.pausedUntil) return;
       this.scareCastReactionActive = true;
       this.reactionBubble.setText('Something spooky…').setVisible(true);
       this.face.setText('•~•');
@@ -252,12 +251,10 @@ export class Npc extends Phaser.GameObjects.Container {
     this.scareCastReactionActive = false;
     this.scareCastTween?.stop();
     this.scareCastTween = undefined;
-    if (this.scene.time.now >= this.pausedUntil) {
-      this.reactionBubble.setVisible(false);
-      if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
-      if (!this.wasMoving) {
-        this.setScale(1);
-      }
+    this.reactionBubble.setVisible(false);
+    if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
+    if (!this.wasMoving) {
+      this.setScale(1);
     }
   }
 }

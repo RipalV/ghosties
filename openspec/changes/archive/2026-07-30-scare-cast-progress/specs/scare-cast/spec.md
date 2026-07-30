@@ -67,6 +67,14 @@ While a scare cast is active, the game SHALL accumulate exposure for the time th
 - **THEN** exposure stops increasing
 - **AND** cast progress continues
 - **AND** Nora’s mid-cast reaction clears
+- **AND** the status UI briefly notes that Nora left the spooky zone
+
+#### Scenario: Entering range mid-cast starts Nora reaction
+- **GIVEN** a scare cast is in progress and the ghost was out of range at cast start
+- **WHEN** the ghost or Nora moves into that ability’s range before the cast completes
+- **THEN** Nora shows a mild mid-cast reaction
+- **AND** exposure begins accumulating
+- **AND** the status UI briefly notes that Nora is in the spooky zone
 
 ### Requirement: Shared cast duration and pure rules
 All starting scare abilities SHALL share the same cast duration for this change. Cast start, progress, exposure, complete, same-scare lockout, and exposure-scaled outcome helpers SHALL be implemented as pure functions or domain modules independent of Phaser, covered by deterministic unit tests.
@@ -100,3 +108,17 @@ While a scare cast is in progress and the ghost remains within that ability’s 
 - **WHEN** the ghost moves outside that ability’s range
 - **THEN** Nora’s mid-cast reaction clears
 - **AND** the scare cast continues
+
+### Requirement: Cast movement slowdown while performing
+While a scare cast is in progress, the controllable ghost SHALL ease toward roughly one-eighth its normal world travel speed. When the cast completes, is switched, or is cancelled, movement speed SHALL ease back to normal over a short transition rather than changing instantly. Casting presentation SHALL remain visible during the slowdown.
+
+#### Scenario: Ghost slows down during cast
+- **GIVEN** the ghost is moving at normal speed while idle
+- **WHEN** the player starts an affordable scare cast and continues moving
+- **THEN** the ghost’s world travel speed eases down to approximately one-eighth the normal movement speed
+- **AND** the casting presentation remains visible
+
+#### Scenario: Ghost speed eases back after cast
+- **GIVEN** a scare cast completes, is switched, or is cancelled by Observe
+- **WHEN** the player moves the ghost
+- **THEN** world travel speed eases back to the normal non-casting speed over a short transition
