@@ -68,6 +68,18 @@ Each play session is a **haunting visit** in the Crooked Moon Hotel lobby. **Nor
 
 Nora and Milo fear different things — watch each guest, gather **their** clues, and match your scares to what you learn rather than repeating one solution.
 
+## Hotel tricks (lobby prop combos)
+
+Three lobby props can chain with your scares for a small **Hotel trick!** score bonus — haunt points only; fear and energy maths stay the same:
+
+| Prop | Matching scare |
+|------|----------------|
+| Reception bell (front desk) | Object Nudge |
+| Crooked portrait (left wall) | Whisper |
+| Drafty fireplace (piano nook) | Cold Puff |
+
+Sneak your ghost into the prop’s activation zone, start a **matching** scare while the visitor is targetable, and finish the cast with them **in range** and **near the prop** when it resolves. You get a funny environmental reaction plus **+10 haunt points** once per prop per visit. A brief coaching hint may appear after the first-visit tutorial if you stand near an unused prop.
+
 ## Mobile play
 
 - Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction; it clears on rotation without a reload.

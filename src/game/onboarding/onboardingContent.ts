@@ -45,7 +45,8 @@ export type CoachingHintId =
   | 'unreviewedClues'
   | 'zeroExposure'
   | 'repeatedIneffective'
-  | 'routeNearlyDone';
+  | 'routeNearlyDone'
+  | 'propComboAvailable';
 
 export interface CoachingHintContent {
   readonly icon: string;
@@ -76,6 +77,10 @@ export const COACHING_HINT_CONTENT: Record<CoachingHintId, CoachingHintContent> 
   routeNearlyDone: {
     icon: '⏰',
     message: (name) => `${name} is almost leaving — one more snoop or scare?`,
+  },
+  propComboAvailable: {
+    icon: '🛎',
+    message: () => 'Hotel trick! Sneak near lobby furniture and cast a matching scare while the guest is close.',
   },
 };
 
