@@ -2,12 +2,8 @@ import Phaser from 'phaser';
 import type { ScareAbility } from '../abilities/ScareAbility';
 import type { ClueDefinition } from '../observation/types';
 import { HUD_LAYOUT } from '../visuals/lobbyTheme';
-import { ActionButton } from './ActionButton';
-import { CharacterCard } from './CharacterCard';
-import { CluePanel, type CluePanelEntry } from './CluePanel';
 import { DomHudControls } from './DomHudControls';
 import { HudChip } from './HudChip';
-import { ObserveButton } from './ObserveButton';
 import { OffscreenIndicator } from './OffscreenIndicator';
 import { StatusToast } from './StatusToast';
 
@@ -26,15 +22,10 @@ export interface GameHudOptions {
   readonly onToggleClues: () => void;
 }
 
-interface ControlHit {
-  readonly rect: Phaser.Geom.Rectangle;
-  readonly activate: () => void;
-}
-
 /**
- * Floating HUD: value chips + bottom action cluster in Phaser; objective, clues,
- * and zoom as HTML overlays so corner hit targets match what players see
- * (Phaser's device-pixel canvas scale makes top-edge hits unreliable).
+ * Floating HUD: value chips and toasts in Phaser; corner controls, clue
+ * review, and the action cluster as HTML overlays so layout stays aligned in
+ * fullscreen and under device-pixel canvas scaling.
  */
 export class GameHud {
   /** Everything the UI camera draws; the world camera ignores this container. */
@@ -43,23 +34,20 @@ export class GameHud {
   private readonly scoreChip: HudChip;
   private readonly energyChip: HudChip;
   private readonly fearChip: HudChip;
-  private readonly observeButton: ObserveButton;
-  private readonly cluePanel: CluePanel;
-  private readonly card: CharacterCard;
   private readonly toast: StatusToast;
   private readonly npcIndicator: OffscreenIndicator;
   private readonly domHud: DomHudControls;
-  private readonly actionButtons: ActionButton[] = [];
   private readonly blockedRegions: Phaser.Geom.Rectangle[] = [];
-  /** Phaser-owned hits (Observe + scare grid). Corner controls are HTML. */
-  private readonly controlHits: ControlHit[] = [];
+  private readonly hudParent: HTMLElement;
 
   private viewWidth = 0;
   private viewHeight = 0;
   private hasDiscoveredClues = false;
+  private actionCount = 0;
+  private actionEnergyCosts: number[] = [];
 
   constructor(
-    private readonly scene: Phaser.Scene,
+    scene: Phaser.Scene,
     private readonly uiScale: number,
     private readonly options: GameHudOptions,
   ) {
@@ -69,14 +57,12 @@ export class GameHud {
     this.energyChip = new HudChip(scene, '✨', '100', uiScale);
     this.fearChip = new HudChip(scene, '😮', 'CALM 0', uiScale);
 
-    this.observeButton = new ObserveButton(scene, uiScale, options.onObserve);
-    this.cluePanel = new CluePanel(scene, uiScale);
-    this.card = new CharacterCard(scene, '👻', 'Ghost', uiScale);
     this.toast = new StatusToast(scene, uiScale);
     this.npcIndicator = new OffscreenIndicator(scene, 'Nora', uiScale);
 
     const parent = scene.game.canvas.parentElement;
     if (!parent) throw new Error('Missing game parent for DOM HUD controls.');
+    this.hudParent = parent;
 
     this.domHud = new DomHudControls(parent, {
       onObjective: () => {
@@ -86,18 +72,10 @@ export class GameHud {
       onToggleClues: options.onToggleClues,
       onZoomIn: options.onZoomIn,
       onZoomOut: options.onZoomOut,
+      onObserve: options.onObserve,
     });
 
-    this.root.add([
-      this.scoreChip,
-      this.energyChip,
-      this.fearChip,
-      this.observeButton,
-      this.cluePanel,
-      this.card,
-      this.toast,
-      this.npcIndicator,
-    ]);
+    this.root.add([this.scoreChip, this.energyChip, this.fearChip, this.toast, this.npcIndicator]);
 
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.domHud.destroy());
   }
@@ -106,14 +84,9 @@ export class GameHud {
     abilities: readonly ScareAbility[],
     onActivate: (ability: ScareAbility) => void,
   ): void {
-    abilities.forEach((ability, index) => {
-      const button = new ActionButton(this.scene, ability, String(index + 1), this.uiScale, () =>
-        onActivate(ability),
-      );
-      this.actionButtons.push(button);
-      this.root.add(button);
-    });
-
+    this.actionCount = abilities.length;
+    this.actionEnergyCosts = abilities.map((ability) => ability.energyCost);
+    this.domHud.createActionControls(abilities, onActivate);
     if (this.viewWidth > 0) this.layout(this.viewWidth, this.viewHeight);
   }
 
@@ -122,57 +95,24 @@ export class GameHud {
     this.viewHeight = height;
 
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
-    const objectiveSize = HUD_LAYOUT.objectiveSize * s;
+    const edgeInsetBottom = this.readEdgeInsetBottom();
     const actionSize = HUD_LAYOUT.actionSize * s;
-    const topRowHeight = Math.max(HUD_LAYOUT.chipHeight * s, objectiveSize);
 
-    // Leave top-left CSS space for the HTML objective/clues buttons; chips follow.
     this.layoutChips();
 
-    const cardRadius = this.card.radius;
-    const cardCenterY = height - pad - Math.max(cardRadius, actionSize / 2);
-    this.card.setPosition(pad + cardRadius, cardCenterY);
-
-    const observeX = pad + cardRadius * 2 + 14 * s + actionSize / 2;
-    this.observeButton.setPosition(observeX, cardCenterY);
-
-    const gridStartX = observeX + actionSize + HUD_LAYOUT.observeActionGap * s;
-    this.actionButtons.forEach((button, index) => {
-      button.setPosition(gridStartX + index * (actionSize + HUD_LAYOUT.actionGap * s), cardCenterY);
-    });
-
-    const panelTop = pad + topRowHeight + 10 * s;
-    this.cluePanel.layout(pad, panelTop);
+    const cardRadius = HUD_LAYOUT.cardRadius * s;
+    const cardCenterY = this.viewHeight - edgeInsetBottom - Math.max(cardRadius, actionSize / 2);
 
     this.toast.setWrapWidth(Math.max(200 * s, width * HUD_LAYOUT.toastMaxWidthFraction));
     this.toast.setPosition(width / 2, cardCenterY - actionSize / 2 - 26 * s);
 
-    this.rebuildControlHits({
-      observeX,
-      cardCenterY,
-      actionSize,
-      gridStartX,
-    });
     this.refreshBlockedRegions();
   }
 
-  /**
-   * Screen-space hit test for Phaser HUD controls (Observe + scare grid).
-   * Objective, clues, and zoom are HTML and never reach this path.
-   */
   handlePointerDown(x: number, y: number): boolean {
-    for (const hit of this.controlHits) {
-      if (hit.rect.contains(x, y)) {
-        hit.activate();
-        return true;
-      }
-    }
-
     return this.blocksPointer(x, y);
   }
 
-  /** Screen regions owned by the HUD, so world taps never fight a control. */
   blocksPointer(x: number, y: number): boolean {
     return this.blockedRegions.some((region) => region.contains(x, y));
   }
@@ -194,37 +134,38 @@ export class GameHud {
   }
 
   setObserveState(inRange: boolean, observing: boolean, progress: number): void {
-    this.observeButton.setObserveState(inRange, observing, progress);
+    this.domHud.setObserveState(inRange, observing, progress);
   }
 
   setClueEntries(clues: readonly ClueDefinition[], discoveredIds: readonly string[]): void {
-    const entries: CluePanelEntry[] = clues.map((clue) => ({
-      id: clue.id,
-      category: clue.category,
-      text: clue.text,
-      discovered: discoveredIds.includes(clue.id),
-    }));
-    this.cluePanel.setEntries(entries);
+    this.domHud.setClueEntries(
+      clues.map((clue) => ({
+        id: clue.id,
+        category: clue.category,
+        text: clue.text,
+        discovered: discoveredIds.includes(clue.id),
+      })),
+    );
     this.hasDiscoveredClues = discoveredIds.length > 0;
-    this.domHud.setCluesNotification(this.hasDiscoveredClues && !this.cluePanel.isOpen());
+    this.domHud.setCluesNotification(this.hasDiscoveredClues && !this.domHud.isCluePanelOpen());
   }
 
   toggleCluePanel(): boolean {
-    const next = !this.cluePanel.isOpen();
-    this.cluePanel.setOpen(next);
+    const next = !this.domHud.isCluePanelOpen();
+    this.domHud.setCluePanelOpen(next);
     this.domHud.setCluesNotification(this.hasDiscoveredClues && !next);
-    this.refreshBlockedRegions();
+    this.scheduleBlockedRegionRefresh();
     return next;
   }
 
   setCluePanelOpen(open: boolean): void {
-    this.cluePanel.setOpen(open);
+    this.domHud.setCluePanelOpen(open);
     this.domHud.setCluesNotification(this.hasDiscoveredClues && !open);
-    this.refreshBlockedRegions();
+    this.scheduleBlockedRegionRefresh();
   }
 
   showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
-    const inset = HUD_LAYOUT.padding * this.uiScale + 20 * this.uiScale;
+    const inset = this.readEdgeInsetX() + 20 * this.uiScale;
     const zoomColumn = (HUD_LAYOUT.zoomButtonSize + HUD_LAYOUT.padding) * this.uiScale;
     this.npcIndicator.pointAt(
       { x: this.viewWidth / 2, y: this.viewHeight / 2 },
@@ -248,8 +189,8 @@ export class GameHud {
     this.energyChip.setValue(String(snapshot.energy));
     this.fearChip.setValue(`${snapshot.stage.toUpperCase()} ${snapshot.fear}`);
 
-    this.actionButtons.forEach((button) => {
-      button.setAffordable(snapshot.energy >= button.ability.energyCost);
+    this.actionEnergyCosts.forEach((cost, index) => {
+      this.domHud.setActionAffordable(index, snapshot.energy >= cost);
     });
 
     this.layoutChips();
@@ -260,86 +201,74 @@ export class GameHud {
     if (this.viewWidth === 0) return;
 
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
+    const edgeInsetTop = this.readEdgeInsetTop();
+    const edgeInsetX = this.readEdgeInsetX();
     const gap = HUD_LAYOUT.chipGap * s;
     const objectiveSize = HUD_LAYOUT.objectiveSize * s;
-    // Match the HTML objective + clues cluster on the top-left.
-    const startX = pad + objectiveSize * 2 + gap * 2;
-    const centerY = pad + (HUD_LAYOUT.chipHeight * s) / 2;
+    const centerY = edgeInsetTop + objectiveSize / 2;
+
+    const chips = [this.scoreChip, this.energyChip, this.fearChip];
+    const totalWidth =
+      chips.reduce((sum, chip) => sum + chip.chipWidth, 0) + gap * Math.max(0, chips.length - 1);
+
+    const leftClear = edgeInsetX + objectiveSize * 2 + gap * 2;
+    const rightClear = edgeInsetX + HUD_LAYOUT.zoomButtonSize * s + gap;
+    let startX = (this.viewWidth - totalWidth) / 2;
+    if (startX < leftClear) startX = leftClear;
+    if (startX + totalWidth > this.viewWidth - rightClear) {
+      startX = Math.max(leftClear, this.viewWidth - rightClear - totalWidth);
+    }
 
     let cursorX = startX;
-    for (const chip of [this.scoreChip, this.energyChip, this.fearChip]) {
+    for (const chip of chips) {
       chip.setPosition(cursorX, centerY);
       cursorX += chip.chipWidth + gap;
     }
   }
 
-  private rebuildControlHits(layout: {
-    observeX: number;
-    cardCenterY: number;
-    actionSize: number;
-    gridStartX: number;
-  }): void {
-    const s = this.uiScale;
-    const touchPad = 4 * s;
-
-    this.controlHits.length = 0;
-
-    this.controlHits.push({
-      rect: squareHit(layout.observeX, layout.cardCenterY, layout.actionSize, touchPad),
-      activate: () => {
-        this.observeButton.press();
-      },
-    });
-
-    this.actionButtons.forEach((button, index) => {
-      const x = layout.gridStartX + index * (layout.actionSize + HUD_LAYOUT.actionGap * s);
-      this.controlHits.push({
-        rect: squareHit(x, layout.cardCenterY, layout.actionSize, touchPad),
-        activate: () => {
-          button.press();
-        },
-      });
-    });
-  }
-
   private refreshBlockedRegions(): void {
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
+    const edgeInsetX = this.readEdgeInsetX();
+    const edgeInsetBottom = this.readEdgeInsetBottom();
     const touchPad = 6 * s;
-    const objectiveSize = HUD_LAYOUT.objectiveSize * s;
 
     this.blockedRegions.length = 0;
+
+    this.blockedRegions.push(this.domRectToGame(this.domHud.topLeftCluster, touchPad));
 
     const chipsWidth =
       this.scoreChip.chipWidth +
       this.energyChip.chipWidth +
       this.fearChip.chipWidth +
-      HUD_LAYOUT.chipGap * s * 3;
+      HUD_LAYOUT.chipGap * s * Math.max(0, 2);
+    const topHeight =
+      this.readEdgeInsetTop() + Math.max(HUD_LAYOUT.objectiveSize, HUD_LAYOUT.chipHeight) * s + touchPad;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(
+        this.scoreChip.x - touchPad,
         0,
-        0,
-        pad + objectiveSize * 2 + HUD_LAYOUT.chipGap * s + chipsWidth + touchPad,
-        pad + Math.max(objectiveSize, HUD_LAYOUT.chipHeight * s) + touchPad,
+        chipsWidth + touchPad * 2,
+        topHeight,
       ),
     );
 
-    const bottomHeight = Math.max(HUD_LAYOUT.actionSize, HUD_LAYOUT.cardRadius * 2) * s + pad + touchPad;
+    const cardRadius = HUD_LAYOUT.cardRadius * s;
+    const bottomHeight =
+      Math.max(HUD_LAYOUT.actionSize, HUD_LAYOUT.cardRadius * 2) * s + edgeInsetBottom + touchPad + 18 * s;
     const bottomWidth =
-      pad +
-      this.card.radius * 2 +
+      edgeInsetX +
+      cardRadius * 2 +
       14 * s +
       HUD_LAYOUT.actionSize * s +
       HUD_LAYOUT.observeActionGap * s +
-      this.actionButtons.length * HUD_LAYOUT.actionSize * s +
-      Math.max(0, this.actionButtons.length - 1) * HUD_LAYOUT.actionGap * s +
+      this.actionCount * HUD_LAYOUT.actionSize * s +
+      Math.max(0, this.actionCount - 1) * HUD_LAYOUT.actionGap * s +
       touchPad;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(0, this.viewHeight - bottomHeight, bottomWidth, bottomHeight),
     );
 
-    const zoomWidth = HUD_LAYOUT.zoomButtonSize * s + pad + touchPad;
+    const zoomWidth = HUD_LAYOUT.zoomButtonSize * s + edgeInsetX + touchPad;
     const zoomHeight = HUD_LAYOUT.zoomButtonSize * s * 2.4;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(
@@ -349,21 +278,49 @@ export class GameHud {
         zoomHeight,
       ),
     );
-
-    if (this.cluePanel.isOpen()) {
-      this.blockedRegions.push(
-        new Phaser.Geom.Rectangle(
-          this.cluePanel.x,
-          this.cluePanel.y,
-          this.cluePanel.panelWidth,
-          this.cluePanel.panelHeight,
-        ),
-      );
-    }
   }
-}
 
-function squareHit(centerX: number, centerY: number, size: number, pad: number): Phaser.Geom.Rectangle {
-  const half = size / 2 + pad;
-  return new Phaser.Geom.Rectangle(centerX - half, centerY - half, half * 2, half * 2);
+  /** Re-measure DOM HUD bounds after the clue panel toggles or resizes. */
+  private scheduleBlockedRegionRefresh(): void {
+    this.refreshBlockedRegions();
+    requestAnimationFrame(() => {
+      this.refreshBlockedRegions();
+    });
+  }
+
+  private domRectToGame(element: HTMLElement, pad = 0): Phaser.Geom.Rectangle {
+    const canvas = this.hudParent.querySelector('canvas');
+    if (!canvas) return new Phaser.Geom.Rectangle(0, 0, 0, 0);
+
+    const elementRect = element.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+
+    const x = (elementRect.left - canvasRect.left) * scaleX - pad;
+    const y = (elementRect.top - canvasRect.top) * scaleY - pad;
+    const width = elementRect.width * scaleX + pad * 2;
+    const height = elementRect.height * scaleY + pad * 2;
+
+    return new Phaser.Geom.Rectangle(x, y, width, height);
+  }
+
+  private readEdgeInsetTop(): number {
+    return this.readCssLength('--hud-edge-inset-top', HUD_LAYOUT.padding);
+  }
+
+  private readEdgeInsetX(): number {
+    return this.readCssLength('--hud-edge-inset-x', HUD_LAYOUT.padding);
+  }
+
+  private readEdgeInsetBottom(): number {
+    return this.readCssLength('--hud-edge-inset-bottom', HUD_LAYOUT.padding);
+  }
+
+  private readCssLength(varName: string, fallback: number): number {
+    const raw = getComputedStyle(this.hudParent).getPropertyValue(varName).trim();
+    const cssPx = raw ? Number.parseFloat(raw) : Number.NaN;
+    const inset = Number.isFinite(cssPx) ? cssPx : fallback;
+    return inset * this.uiScale;
+  }
 }

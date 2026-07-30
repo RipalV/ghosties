@@ -33,12 +33,20 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   background: #17142b;
-  /* Safe-area is applied on #app / HUD overlays so it still works when
-     #app is the fullscreen target (body padding would not inset it). */
   padding: 0;
 }
 
 #app {
+  --hud-pad-top: env(safe-area-inset-top, 0px);
+  --hud-pad-right: env(safe-area-inset-right, 0px);
+  --hud-pad-bottom: env(safe-area-inset-bottom, 0px);
+  --hud-pad-left: env(safe-area-inset-left, 0px);
+  /* Inset from the canvas content box for corner HUD clusters (matches HUD_LAYOUT.padding). */
+  --hud-edge-inset-top: 12px;
+  --hud-edge-inset-x: 12px;
+  --hud-edge-inset-bottom: 12px;
+  --hud-clue-panel-gap: 12px;
+
   position: relative;
   box-sizing: border-box;
   width: 100%;
@@ -49,41 +57,304 @@ body {
   overflow: hidden;
   background: #17142b;
   touch-action: none;
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
-    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  padding: var(--hud-pad-top) var(--hud-pad-right) var(--hud-pad-bottom) var(--hud-pad-left);
 }
 
-/* Corner HUD controls live in CSS so hit targets match the visible buttons
-   under the canvas device-pixel zoom scale. pointer-events none lets taps
-   through to the game except on the buttons themselves.
-   Inset by the same safe-area as #app's padding so absolute children are not
-   drawn under the notch / fullscreen top chrome (where taps are swallowed). */
+/*
+ * Desktop fullscreen often reports safe-area 0 but still steals the top strip
+ * for exit/drag chrome. Enlarge the top pad so canvas + HUD sit below it.
+ */
+#app:fullscreen,
+#app:-webkit-full-screen {
+  --hud-pad-top: max(40px, env(safe-area-inset-top, 0px));
+  --hud-pad-right: max(12px, env(safe-area-inset-right, 0px));
+  --hud-pad-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  --hud-pad-left: max(12px, env(safe-area-inset-left, 0px));
+  /* Outer pad clears browser chrome; keep inner top flush so buttons sit high. */
+  --hud-edge-inset-top: 0px;
+  --hud-edge-inset-x: 4px;
+  --hud-edge-inset-bottom: 4px;
+}
+
+#app canvas {
+  position: relative;
+  z-index: 0;
+}
+
+/*
+ * Absolute children are positioned against #app's padding edge. Offset by the
+ * same CSS vars as padding so the overlay matches the canvas content box —
+ * otherwise top buttons sit in the padded/dead zone and misses feel like
+ * "the top of the button doesn't work".
+ */
 #dom-hud {
   position: absolute;
-  top: env(safe-area-inset-top, 0px);
-  right: env(safe-area-inset-right, 0px);
-  bottom: env(safe-area-inset-bottom, 0px);
-  left: env(safe-area-inset-left, 0px);
-  z-index: 10;
+  top: var(--hud-pad-top);
+  right: var(--hud-pad-right);
+  bottom: var(--hud-pad-bottom);
+  left: var(--hud-pad-left);
+  z-index: 15;
   pointer-events: none;
 }
 
 .dom-hud-top-left {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: var(--hud-edge-inset-top);
+  left: var(--hud-edge-inset-x);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--hud-clue-panel-gap);
+  pointer-events: none;
+}
+
+.dom-hud-top-buttons {
   display: flex;
   gap: 8px;
+  pointer-events: auto;
+}
+
+.dom-clue-panel {
+  width: min(304px, calc(100vw - 2 * var(--hud-edge-inset-x) - 2 * var(--hud-pad-left)));
+  padding: 12px;
+  color: #fff7cf;
+  background: #241836f0;
+  border: 2px solid #8a78c0;
+  border-radius: 14px;
+  pointer-events: auto;
+}
+
+.dom-clue-panel[hidden] {
+  display: none;
+}
+
+.dom-clue-panel-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff7cf;
+}
+
+.dom-clue-panel-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dom-clue-panel-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 34px;
+}
+
+.dom-clue-panel-glyph {
+  flex: 0 0 auto;
+  width: 20px;
+  font-size: 16px;
+  line-height: 34px;
+  text-align: center;
+}
+
+.dom-clue-panel-text {
+  flex: 1 1 auto;
+  font-size: 13px;
+  line-height: 1.35;
+  color: #fff7cf;
+}
+
+.dom-clue-panel-text[data-locked='true'] {
+  color: #b8aac8;
 }
 
 .dom-hud-zoom {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: var(--hud-edge-inset-x);
   display: flex;
   flex-direction: column;
   gap: 8px;
   transform: translateY(-50%);
+  pointer-events: auto;
+}
+
+.dom-hud-bottom-left {
+  position: absolute;
+  bottom: var(--hud-edge-inset-bottom);
+  left: var(--hud-edge-inset-x);
+  display: flex;
+  align-items: flex-end;
+  pointer-events: auto;
+}
+
+.dom-hud-ghost-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 14px;
+  pointer-events: auto;
+}
+
+.dom-hud-ghost-label {
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #fff7cf;
+  background: #241836d9;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.dom-hud-ghost-portrait {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  line-height: 1;
+  background: #2d1f4ad9;
+  border: 3px solid #8a78c0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dom-hud-observe-wrap {
+  margin-right: 18px;
+}
+
+.dom-hud-action-grid {
+  display: flex;
+  gap: 10px;
+}
+
+.dom-hud-action-button {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  min-width: 60px;
+  min-height: 60px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  line-height: 1;
+  color: #fff7cf;
+  background: #241836d9;
+  border: 2px solid #8a78c0;
+  border-radius: 14px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dom-hud-action-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.dom-hud-action-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.dom-hud-action-button.dom-hud-button-flash {
+  border-color: #c4b0ff;
+  border-width: 4px;
+  transform: scale(0.95);
+}
+
+.dom-hud-action-shortcut {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 11px;
+  line-height: 1;
+  color: #d8cef7;
+  pointer-events: none;
+}
+
+.dom-hud-action-cost {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff7cf;
+  background: #6a52a8;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.dom-hud-action-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.dom-hud-action-lock[hidden] {
+  display: none;
+}
+
+.dom-hud-observe-range {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff7cf;
+  pointer-events: none;
+}
+
+.dom-hud-observe-range[hidden] {
+  display: none;
+}
+
+.dom-hud-observe-progress {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff7cf;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.dom-hud-observe-progress[hidden] {
+  display: none;
+}
+
+.dom-hud-observe-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 12px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.dom-hud-observe-button[data-observing='true'] .dom-hud-observe-ring {
+  opacity: 1;
+  background: conic-gradient(#8a78c0 calc(var(--progress, 0) * 360deg), transparent 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
 }
 
 .dom-hud-button {
@@ -151,11 +422,10 @@ canvas {
   -webkit-user-select: none;
 }
 
-/* Lives inside #app so it remains usable when #app is fullscreen. */
 #fullscreen-toggle {
   position: absolute;
-  top: calc(env(safe-area-inset-top, 0px) + 8px);
-  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  top: calc(var(--hud-pad-top) + 8px);
+  right: calc(var(--hud-pad-right) + 8px);
   z-index: 20;
   width: 46px;
   height: 46px;

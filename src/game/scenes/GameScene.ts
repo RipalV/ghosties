@@ -116,8 +116,8 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.input.pointer2?.isDown) return;
-      // Corner controls (objective / clues / zoom) are HTML. Phaser only owns
-      // Observe + scare hits here; use pointer game coords for those.
+      // HUD controls (objective, clues, zoom, Observe, scares) are HTML overlays.
+      // Phaser only blocks pointer hits on HUD regions so taps do not move the ghost.
       if (this.hud.handlePointerDown(pointer.x, pointer.y)) return;
 
       const target = this.cameras.main.getWorldPoint(pointer.x, pointer.y);

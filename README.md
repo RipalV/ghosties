@@ -60,7 +60,7 @@ While observing, stay within range of Nora. Each Observe unlocks **one** new clu
 - Zoom has three fixed steps and is clamped to the lobby, so the view can never end up somewhere unusable. Zoom changes the view only — scare ranges and outcomes are unaffected.
 - Rendering uses the device pixel ratio (capped at 2×), so small HUD text stays sharp on high-density screens.
 - Tap the **⛶** button in the top-right corner for full screen, which hides the browser address bar. Browsers only allow this from a tap, and iPhone Safari does not support it — the game still fills the viewport there.
-- The HUD floats over the play area: objective and clues buttons with value chips along the top-left, ghost card with Observe and the scare grid in the bottom-left, zoom on the right edge, fullscreen in the top-right, all clear of safe-area insets.
+- The HUD floats over the play area: objective and clues buttons top-left, value chips centred along the top, ghost card with Observe and the scare grid in the bottom-left, zoom on the right edge, fullscreen in the top-right, all clear of safe-area insets.
 - Tap **👁** to observe when you are close to Nora; tap **🧩** to review discovered clues without covering the scare buttons.
 - Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 

@@ -120,10 +120,16 @@ if (fullscreenButton) {
     document.addEventListener('fullscreenchange', () => {
       syncFullscreenButton();
       refreshViewport();
+      requestAnimationFrame(() => {
+        refreshViewport();
+      });
     });
     document.addEventListener('webkitfullscreenchange', () => {
       syncFullscreenButton();
       refreshViewport();
+      requestAnimationFrame(() => {
+        refreshViewport();
+      });
     });
   }
 }
