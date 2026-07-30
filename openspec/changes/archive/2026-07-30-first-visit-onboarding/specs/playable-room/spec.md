@@ -1,35 +1,21 @@
-# Playable Room Specification
+## ADDED Requirements
 
-## Purpose
+### Requirement: Scene wires tutorial events without owning progression
+`GameScene` SHALL forward gameplay and session events (session ready, guest arriving, visitor targetable, observe complete with clue, clue panel opened, successful scare resolve, skip help, prompt acknowledged, departure, next visit) into pure onboarding and coaching modules and SHALL apply only the presentation intents those modules return (prompt text, OK/Skip, highlights). Tutorial step progression and hint eligibility SHALL NOT be hard-coded as permanent branching inside `GameScene`. Tutorial presentation SHALL clear on departure, skip, and next visit as specified by onboarding rules.
 
-Define the first playable hotel-room slice: pure fear-engine outcomes, scene feedback for scares and range, and how those behaviours are verified.
-## Requirements
-### Requirement: Fear engine outcomes are unit-tested
+#### Scenario: Scene does not hard-code step order
+- **GIVEN** guided onboarding is active
+- **WHEN** a matching gameplay event occurs
+- **THEN** the pure onboarding reducer advances the step
+- **AND** `GameScene` does not contain a permanent hard-coded list of step transitions outside that module
 
-Deterministic scare outcomes (fear gain, novelty multipliers, score deltas for in-range scares) SHALL be implemented in pure `FearEngine` functions and covered by Vitest unit tests. Scene/UI feedback that depends on Phaser SHALL be verified by playtesting, not by FearEngine unit tests.
+#### Scenario: Tutorial presentation clears on next visit
+- **GIVEN** a guided prompt or highlight is visible
+- **WHEN** the player chooses Next visit
+- **THEN** tutorial presentation clears
+- **AND** session onboarding completion/skip state is preserved separately from fear and clue reset
 
-#### Scenario: Discover a high fear
-
-- **GIVEN** Nora has Whisper as a high fear
-- **WHEN** Whisper is resolved for the first time (no prior uses of that category)
-- **THEN** fear gained is 28
-- **AND** the score delta includes a first-discovery bonus (fear gained + 5)
-- **AND** the result reaction indicates a perfect scare
-
-#### Scenario: Repeat a scare reduces novelty
-
-- **GIVEN** a scare category has already been used once
-- **WHEN** novelty is calculated for the next use of that category
-- **THEN** the novelty multiplier is 0.7
-- **AND** in-range fear gain is base fear multiplied by that novelty (FearEngine applies this when resolving a scare)
-
-#### Scenario: Use an ineffective scare
-
-- **GIVEN** Nora treats Object Nudge as ineffective
-- **WHEN** Object Nudge is resolved
-- **THEN** fear gained is 0
-- **AND** the score delta is −5
-- **AND** the result reaction indicates the scare was funny rather than frightening
+## MODIFIED Requirements
 
 ### Requirement: Scene feedback for scares and range
 
@@ -121,19 +107,3 @@ Deterministic scare outcomes (fear gain, novelty multipliers, score deltas for i
 - **WHEN** the player observes and completes a scare cast using that visitor’s primary fear
 - **THEN** fear, score, and reactions apply using that visitor’s content
 - **AND** `GameScene` does not require permanent hard-coded branches on the visitor’s display name
-
-### Requirement: Scene wires tutorial events without owning progression
-`GameScene` SHALL forward gameplay and session events (session ready, guest arriving, visitor targetable, observe complete with clue, clue panel opened, successful scare resolve, skip help, prompt acknowledged, departure, next visit) into pure onboarding and coaching modules and SHALL apply only the presentation intents those modules return (prompt text, OK/Skip, highlights). Tutorial step progression and hint eligibility SHALL NOT be hard-coded as permanent branching inside `GameScene`. Tutorial presentation SHALL clear on departure, skip, and next visit as specified by onboarding rules.
-
-#### Scenario: Scene does not hard-code step order
-- **GIVEN** guided onboarding is active
-- **WHEN** a matching gameplay event occurs
-- **THEN** the pure onboarding reducer advances the step
-- **AND** `GameScene` does not contain a permanent hard-coded list of step transitions outside that module
-
-#### Scenario: Tutorial presentation clears on next visit
-- **GIVEN** a guided prompt or highlight is visible
-- **WHEN** the player chooses Next visit
-- **THEN** tutorial presentation clears
-- **AND** session onboarding completion/skip state is preserved separately from fear and clue reset
-

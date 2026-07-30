@@ -20,8 +20,9 @@ permissions:
   pull-requests: write
 
 concurrency:
+  # Queue reruns instead of cancelling mid-Terraform; cancelled plans leave Azure state locks.
   group: azure-static-web-apps-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   TF_WORKING_DIR: terraform
@@ -62,14 +63,19 @@ jobs:
             -backend-config="container_name=tfstate-ghosties" \
             -backend-config="key=ghosties.tfstate"
 
+      - name: Release stale Terraform state lock
+        run: bash scripts/release-stale-lock.sh
+        env:
+          STALE_MINUTES: 15
+
       - name: Terraform Plan
         if: github.event_name == 'pull_request'
-        run: terraform plan -input=false -no-color
+        run: terraform plan -input=false -no-color -lock-timeout=10m
 
       # Production infrastructure changes only from main (never from PRs or other branches).
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        run: terraform apply -auto-approve -input=false -no-color
+        run: terraform apply -auto-approve -input=false -no-color -lock-timeout=10m
 
   build_and_deploy_production:
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'

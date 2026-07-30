@@ -2,7 +2,7 @@
 
 A browser-first scaffold for a family-friendly ghost haunting game. The working game title is **Boo & Behold!**.
 
-Players control a mischievous ghost, observe NPC behaviour, discover hidden fears, and combine playful scares. This first slice contains one room, one NPC, three abilities, fear progression, scoring, diminishing scare novelty, and a funny failed-scare ghost glimpse.
+Players control a mischievous ghost, observe visitor behaviour, discover hidden fears, and combine playful scares. This slice contains one hotel lobby, two rotating visitors, three abilities, fear progression, scoring, diminishing scare novelty, and a funny failed-scare ghost glimpse. The first Nora visit includes optional in-game help that teaches the core loop.
 
 ## Technology
 
@@ -43,16 +43,18 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 ## Controls
 
 - Move: WASD, mouse click, or tap anywhere on the lobby floor
-- Observe Nora: **O** or the **👁** button beside the ghost card (mouse or touch)
+- Observe the active visitor: **O** or the **👁** button beside the ghost card (mouse or touch)
 - Review clues: **🧩** button beside the objective button (top-left)
 - Whisper: 1
 - Cold Puff: 2
 - Object Nudge: 3
 - The square scare buttons beside the ghost card work with mouse or touch
-- Scares cast briefly — a ring fills on the button, then the scare lands. You can start a cast from anywhere; stay in range while it plays to **expose** Nora — the longer she is in range, the stronger the effect. Energy is spent only if Nora was exposed when the cast finishes. You can switch to another scare while one is casting. While casting, the ghost moves much slower (about **one-eighth speed**, easing in and out smoothly) and shows a **CASTING** marker; Nora may react with a mild “Something spooky…” cue when you are in range.
+- Scares cast briefly — a ring fills on the button, then the scare lands. You can start a cast from anywhere; stay in range while it plays to **expose** the visitor — the longer they are in range, the stronger the effect. Energy is spent only if the visitor was exposed when the cast finishes. You can switch to another scare while one is casting. While casting, the ghost moves much slower (about **one-eighth speed**, easing in and out smoothly) and shows a **CASTING** marker; the visitor may react with a mild “Something spooky…” cue when you are in range.
 - Zoom: the **＋** and **－** buttons on the right edge, or a pinch (both snap to fixed zoom steps)
 
-While observing, stay within range of Nora. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit. Starting Observe cancels an in-progress scare cast, and vice versa.
+While observing, stay within range of the active visitor. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit. Starting Observe cancels an in-progress scare cast, and vice versa.
+
+On your **first Nora visit**, six short OK/Skip prompts teach the haunt loop: welcome → guest arrives → move close & Observe → open clues → pick a scare & stay close → repeat. Tap **Skip help** any time; brief hints may still appear if you get stuck later.
 
 ## Visit flow
 
@@ -69,14 +71,14 @@ Nora and Milo fear different things — watch each guest, gather **their** clues
 ## Mobile play
 
 - Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction; it clears on rotation without a reload.
-- The lobby fills the whole canvas on any ratio. The camera follows the ghost automatically inside a larger lobby world, so there are no letterbox bars and no panning to manage. When Nora walks out of view, an edge marker gives her direction and distance.
+- The lobby fills the whole canvas on any ratio. The camera follows the ghost automatically inside a larger lobby world, so there are no letterbox bars and no panning to manage. When the active visitor walks out of view, an edge marker gives their direction and distance.
 - Zoom has three fixed steps and is clamped to the lobby, so the view can never end up somewhere unusable. Zoom changes the view only — scare ranges and outcomes are unaffected.
 - Rendering uses the device pixel ratio (capped at 2×), so small HUD text stays sharp on high-density screens.
 - Tap the **⛶** button in the top-right corner for full screen, which hides the browser address bar. Browsers only allow this from a tap, and iPhone Safari does not support it — the game still fills the viewport there.
 - The HUD floats over the play area: objective and clues buttons top-left, value chips centred along the top, ghost card with Observe and the scare grid in the bottom-left, zoom on the right edge, fullscreen in the top-right, all clear of safe-area insets.
 - On short or narrow landscape viewports, HUD buttons shrink toward a **44 CSS px** touch minimum so more of the lobby stays visible; spacious desktop sizes stay larger.
 - The clue panel caps its height on those viewports and scrolls with a **▼ More below** cue when there are more clues than fit, keeping the scare and Observe buttons uncovered.
-- Tap **👁** to observe when you are close to Nora; tap **🧩** to review discovered clues without covering the scare buttons.
+- Tap **👁** to observe when you are close to the visitor; tap **🧩** to review discovered clues without covering the scare buttons.
 - Prefer reviewing visuals on a physical phone via the Azure Static Web Apps **pull-request preview** URL after opening a PR.
 
 ## Validate
@@ -199,7 +201,7 @@ The first milestone is successful when a player can explain:
 
 1. Why each scare worked or failed.
 2. Why repeating a scare produces fewer points.
-3. How Nora progresses from calm towards possessed.
+3. How each visitor progresses from calm towards possessed.
 4. What they should try next.
 
 ## Repository naming

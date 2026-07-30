@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { ScareAbility } from '../abilities/ScareAbility';
 import type { ClueDefinition } from '../observation/types';
 import { HUD_LAYOUT } from '../visuals/lobbyTheme';
-import { DomHudControls, type DomVisitResultsView } from './DomHudControls';
+import { DomHudControls, type DomTutorialHighlight, type DomTutorialPresentation, type DomVisitResultsView } from './DomHudControls';
 import { HudChip } from './HudChip';
 import { OffscreenIndicator } from './OffscreenIndicator';
 import { StatusToast } from './StatusToast';
@@ -20,6 +20,8 @@ export interface GameHudOptions {
   readonly onObserve: () => void;
   readonly onToggleClues: () => void;
   readonly onNextVisit: () => void;
+  readonly onSkipTutorial?: () => void;
+  readonly onAcknowledgeTutorial?: () => void;
 }
 
 /**
@@ -76,6 +78,8 @@ export class GameHud {
       onZoomOut: options.onZoomOut,
       onObserve: options.onObserve,
       onNextVisit: options.onNextVisit,
+      onSkipTutorial: options.onSkipTutorial,
+      onAcknowledgeTutorial: options.onAcknowledgeTutorial,
     });
 
     this.root.add([this.scoreChip, this.energyChip, this.fearChip, this.toast, this.npcIndicator]);
@@ -125,6 +129,25 @@ export class GameHud {
     this.objectiveText = objective;
     this.domHud.setObserveLabel(visitorName);
     this.domHud.setObjectiveText(objective);
+  }
+
+  setTutorialPresentation(presentation: DomTutorialPresentation): void {
+    this.domHud.setTutorialPresentation(presentation);
+    this.scheduleBlockedRegionRefresh();
+  }
+
+  hideTutorialPresentation(): void {
+    this.domHud.hideTutorialPresentation();
+    this.scheduleBlockedRegionRefresh();
+  }
+
+  setTutorialHighlight(highlight: DomTutorialHighlight): void {
+    this.domHud.setTutorialHighlight(highlight);
+    this.scheduleBlockedRegionRefresh();
+  }
+
+  isTutorialPromptOpen(): boolean {
+    return this.domHud.isTutorialPromptOpen();
   }
 
   setStatus(message: string): void {
@@ -223,7 +246,7 @@ export class GameHud {
   update(snapshot: HudSnapshot): void {
     this.scoreChip.setValue(String(snapshot.score));
     this.energyChip.setValue(String(snapshot.energy));
-    this.fearChip.setValue(`${snapshot.stage.toUpperCase()} ${snapshot.fear}`);
+    this.fearChip.setValue(`${this.visitorName}: ${snapshot.stage.toUpperCase()} ${snapshot.fear}`);
 
     this.actionEnergyCosts.forEach((cost, index) => {
       this.domHud.setActionAffordable(index, snapshot.energy >= cost);
@@ -275,6 +298,18 @@ export class GameHud {
     if (!this.domHud.getResultsOverlayElement().hidden) {
       this.blockedRegions.push(
         this.domRectToGame(this.domHud.getResultsOverlayElement(), touchPad),
+      );
+    }
+
+    if (!this.domHud.getTutorialBannerElement().hidden) {
+      this.blockedRegions.push(
+        this.domRectToGame(this.domHud.getTutorialBannerElement(), touchPad),
+      );
+    }
+
+    if (this.domHud.isTutorialPromptOpen()) {
+      this.blockedRegions.push(
+        this.domRectToGame(this.domHud.getTutorialPromptOverlayElement(), touchPad),
       );
     }
 

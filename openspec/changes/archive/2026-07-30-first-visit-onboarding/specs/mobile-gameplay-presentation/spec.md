@@ -1,0 +1,55 @@
+## ADDED Requirements
+
+### Requirement: Tutorial prompt presentation on mobile
+Guided onboarding SHALL use centered OK/Skip prompts that remain readable on landscape phones, communicate with text and icons rather than colour alone, avoid rapid flashing, respect safe-area insets, and keep OK and Skip help at least 44 CSS pixels. While a guided prompt is open, player movement and haunt controls SHALL be locked and haunt simulation (visitor route, session timers, observation, and scare casts) SHALL pause until OK or Skip. After OK, prompts SHALL NOT permanently cover movement, Observe, or scare controls. Contextual coaching hints MAY use a compact non-blocking banner after guided mode ends.
+
+#### Scenario: Guided prompt on landscape
+- **WHEN** a guided onboarding prompt is shown on a landscape mobile viewport
+- **THEN** the instruction text is readable
+- **AND** OK and Skip help are each at least 44 CSS px
+- **AND** the prompt uses short mischievous copy
+
+#### Scenario: Game pauses while prompt is open
+- **GIVEN** a guided onboarding prompt is visible
+- **WHEN** the player has not yet chosen OK or Skip help
+- **THEN** the visitor route and haunt timers do not advance
+- **AND** observation and scare-cast progress do not advance
+- **AND** the ghost does not move from player input
+
+#### Scenario: Highlight after prompt dismissed
+- **GIVEN** the player acknowledged the Observe-step prompt with OK
+- **WHEN** the Observe control is highlighted
+- **THEN** the highlight uses shape or icon affordance in addition to any colour
+- **AND** Observe and scare controls are usable again
+
+## MODIFIED Requirements
+
+### Requirement: NPC remains findable off-screen
+When an NPC relevant to the current objective is outside the visible view, the game SHALL show a readable on-screen indicator giving the NPC's direction and approximate distance. The indicator SHALL identify the active visitor by name or icon rather than colour alone.
+
+#### Scenario: Active visitor walks out of view
+- **WHEN** the active visitor’s routine takes them outside the current camera view
+- **THEN** an indicator shows their direction and approximate distance
+- **AND** the indicator identifies them by name or icon rather than colour alone
+- **AND** the indicator disappears once they are visible again
+
+#### Scenario: Nora walks out of view during first tutorial visit
+- **GIVEN** guided onboarding is active during the first Nora visit
+- **WHEN** Nora's routine takes her outside the current camera view
+- **THEN** an indicator shows her direction and approximate distance
+- **AND** the indicator identifies her by name or icon rather than colour alone
+
+### Requirement: Compact floating HUD of chips and corner controls
+The HUD SHALL follow a floating-chip layout: resource and score values as small pill chips along the top edge, each pairing a round icon with its value; the current objective as a single rounded icon button in a top corner carrying a notification marker when it needs attention; and status feedback as a transient message rather than permanent full-width text. HUD elements SHALL respect safe-area insets, SHALL communicate state with text, shape, or icons rather than colour alone, and SHALL together occupy a small fraction of the screen so the play area stays dominant. Fear chip labelling SHALL refer to the active visitor rather than always saying Nora.
+
+#### Scenario: Player reads status while playing
+- **WHEN** the game is running on a phone
+- **THEN** score, ghost energy, and the active visitor’s fear are readable as top-edge chips
+- **AND** the objective is reachable from a top-corner icon button
+- **AND** HUD elements do not overlap each other, the safe areas, or the scare controls
+- **AND** status feedback appears briefly and then clears
+
+#### Scenario: Objective needs attention
+- **WHEN** the objective changes or completes
+- **THEN** the objective button shows a notification marker
+- **AND** the marker is distinguishable by shape or icon rather than colour alone

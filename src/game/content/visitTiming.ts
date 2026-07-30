@@ -6,10 +6,13 @@ export const TARGET_OBSERVATIONS = 3;
 export const TARGET_SCARES = 5;
 
 /** Time to reposition or read feedback between sequential Observe/scare actions. */
-export const REPOSITION_BUFFER_MS = 2000;
+export const REPOSITION_BUFFER_MS = 3200;
 
 /** Extra pause budget so the route never feels like a speed-run. */
-export const COMFORT_MARGIN_MS = 5000;
+export const COMFORT_MARGIN_MS = 17000;
+
+/** Extra comfort on the first Nora visit (browser session) for guided onboarding. */
+export const FIRST_VISIT_COMFORT_BONUS_MS = 12000;
 
 export interface VisitPacingPoint {
   readonly x: number;
