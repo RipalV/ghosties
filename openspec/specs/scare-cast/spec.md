@@ -3,9 +3,7 @@
 ## Purpose
 
 Timed scare cast sessions: start when affordable (including out of range), progress independent of range, exposure tracking while in range, resolve on complete with exposure-scaled outcomes, per-ability lockout, and world-space cast presentation for the ghost plus in-range Nora.
-
 ## Requirements
-
 ### Requirement: Scare cast before resolve
 When the player activates an affordable scare, the game SHALL start a timed cast for that ability rather than resolving immediately, whether or not the ghost is currently in that ability’s range. Cast progress SHALL advance for the shared cast duration even while out of range. The scare outcome SHALL apply when cast progress completes, scaled by how long Nora was exposed (time in range during the cast) and by existing fear matching.
 
@@ -128,3 +126,19 @@ While a scare cast is in progress, the controllable ghost SHALL ease toward roug
 - **GIVEN** a scare cast completes, is switched, or is cancelled by Observe
 - **WHEN** the player moves the ghost
 - **THEN** world travel speed eases back to the normal non-casting speed over a short transition
+
+### Requirement: Scare cast cancelled on visit departure
+When visitor departing begins, any active scare cast SHALL be cancelled without resolving. Cancelled casts SHALL NOT spend energy, SHALL NOT apply fear or score changes, SHALL NOT update scare history, and SHALL NOT show a resolve reaction. New scare casts SHALL NOT start while departing or during results.
+
+#### Scenario: Departure cancels cast without energy or outcome
+- **GIVEN** a scare cast is in progress during active haunting
+- **WHEN** visitor departing begins
+- **THEN** the cast session returns to idle
+- **AND** no energy is spent for that cast
+- **AND** no scare outcome is applied
+
+#### Scenario: Cannot start cast while departing
+- **GIVEN** the session is visitor departing or results
+- **WHEN** the player activates a scare via keyboard or HUD
+- **THEN** no scare cast starts
+

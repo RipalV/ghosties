@@ -1,35 +1,4 @@
-# Playable Room Specification
-
-## Purpose
-
-Define the first playable hotel-room slice: pure fear-engine outcomes, scene feedback for scares and range, and how those behaviours are verified.
-## Requirements
-### Requirement: Fear engine outcomes are unit-tested
-
-Deterministic scare outcomes (fear gain, novelty multipliers, score deltas for in-range scares) SHALL be implemented in pure `FearEngine` functions and covered by Vitest unit tests. Scene/UI feedback that depends on Phaser SHALL be verified by playtesting, not by FearEngine unit tests.
-
-#### Scenario: Discover a high fear
-
-- **GIVEN** Nora has Whisper as a high fear
-- **WHEN** Whisper is resolved for the first time (no prior uses of that category)
-- **THEN** fear gained is 28
-- **AND** the score delta includes a first-discovery bonus (fear gained + 5)
-- **AND** the result reaction indicates a perfect scare
-
-#### Scenario: Repeat a scare reduces novelty
-
-- **GIVEN** a scare category has already been used once
-- **WHEN** novelty is calculated for the next use of that category
-- **THEN** the novelty multiplier is 0.7
-- **AND** in-range fear gain is base fear multiplied by that novelty (FearEngine applies this when resolving a scare)
-
-#### Scenario: Use an ineffective scare
-
-- **GIVEN** Nora treats Object Nudge as ineffective
-- **WHEN** Object Nudge is resolved
-- **THEN** fear gained is 0
-- **AND** the score delta is −5
-- **AND** the result reaction indicates the scare was funny rather than frightening
+## MODIFIED Requirements
 
 ### Requirement: Scene feedback for scares and range
 
@@ -114,4 +83,3 @@ Deterministic scare outcomes (fear gain, novelty multipliers, score deltas for i
 - **WHEN** the player chooses Next visit
 - **THEN** the ghost remains in the hotel without a page reload
 - **AND** session-scoped state resets for the new visit
-

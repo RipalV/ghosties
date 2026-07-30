@@ -3,9 +3,7 @@
 ## Purpose
 
 Define typed NPC fear and clue content, progressive discovery without spoiling the primary fear, active-haunting-session discovery state, accessible clue review, and observation-bonus eligibility when a matching scare follows discovery.
-
 ## Requirements
-
 ### Requirement: Typed NPC fear and clue definitions
 Each target NPC SHALL be defined with strongly typed, reusable content that includes a primary hidden fear matching a scare category, optional secondary dislikes, and multiple authored clues. Each clue SHALL include a category (dialogue, body language, nearby objects, or environmental reaction), accessible text, reveal order or reveal conditions, and MAY include a fair personality detail that does not unfairly imply the wrong scare as the answer. Definitions SHALL live outside Phaser scene code.
 
@@ -29,18 +27,23 @@ Observation SHALL reveal clues progressively rather than all at once. The game S
 - **THEN** it does not directly name Nora's primary fear as a completed answer label
 
 ### Requirement: Active-haunting-session discovery state
-Discovered clues SHALL be recorded for the active haunting session and remain available for review until that session ends. Discovery state and observation-bonus eligibility SHALL reset when the haunting session is restarted or a new scene session begins. This change SHALL NOT introduce a separate restart/new-round player flow solely for observation.
+Discovered clues SHALL be recorded for the active haunting visit and remain available for review through that visit’s results. Discovery state and observation-bonus eligibility SHALL reset when the player starts the next visit (Next visit) or when Nora becomes targetable for a new visit after reset. The Next visit control provides the player-facing restart flow for a new haunting visit without reloading the browser.
 
 #### Scenario: Clues persist for the active session
 - **GIVEN** the player has discovered one or more clues
-- **WHEN** they stop observing and continue playing in the same active haunting session
+- **WHEN** they stop observing and continue playing in the same active haunting visit
 - **THEN** those clues remain available for review
 
 #### Scenario: Session restart clears discoveries
-- **GIVEN** clues were discovered in the active haunting session
-- **WHEN** the haunting session is restarted or a new scene session begins
+- **GIVEN** clues were discovered in the previous visit
+- **WHEN** the player chooses Next visit and a new visit begins, or Nora becomes targetable after reset
 - **THEN** discovery state is reset
-- **AND** observation bonus eligibility for the new session is reset
+- **AND** observation bonus eligibility for the new visit is reset
+
+#### Scenario: Clues remain through results
+- **GIVEN** clues were discovered before Nora departed
+- **WHEN** results are showing
+- **THEN** those clues remain listed or summarised for the visit
 
 ### Requirement: Compact accessible clue review
 The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls, the Observe HUD button, or block primary movement input on landscape phones. On short landscape viewports the panel SHALL use a max height with internal scrolling and a non-colour-only “more below” cue when content overflows.
@@ -85,3 +88,4 @@ Observation bonus eligibility, clue progression, and discovery state updates SHA
 #### Scenario: Domain rules are unit-tested
 - **WHEN** developers run the project's unit tests
 - **THEN** progressive discovery, duplicate prevention, active-session reset, fear matching for bonus eligibility, and leave-range cancel behaviour are covered without requiring Phaser
+

@@ -54,6 +54,16 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 
 While observing, stay within range of Nora. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit. Starting Observe cancels an in-progress scare cast, and vice versa.
 
+## Visit flow
+
+Each play session is a **haunting visit** in the Crooked Moon Hotel lobby:
+
+1. **Location ready** — your ghost is already home. Nora is off-site until a visitor is announced.
+2. **Visitor arrival** — a short cue plays, then Nora walks in. Observe and scares stay locked until she reaches her entry point.
+3. **Active haunting** — Nora tours several lobby spots with long pauses (~12 s each) so you have time for **three** Observe passes and **five** scare casts. She keeps walking between stops (and during casts).
+4. **Departure** — if Nora reaches **goofily possessed** fear before her route ends, she leaves early (**epic haunt**). If she finishes the tour first, she slips away (**close call**). Leaving cancels any in-progress Observe or scare cast without spending energy or applying outcomes.
+5. **Results** — a mobile-friendly overlay shows the outcome in playful copy, haunt points, spy bonus, secret recap, and a ghost tip. Tap **Next visit** (≥44 CSS px) to reset fear, score, energy, clues, and novelty for another try without reloading. Your ghost and the hotel stay put.
+
 ## Mobile play
 
 - Play in **landscape**. Portrait (viewport taller than wide) shows a “Rotate to play” message and pauses interaction; it clears on rotation without a reload.

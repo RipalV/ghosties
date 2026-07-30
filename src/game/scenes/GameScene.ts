@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { STARTING_ABILITIES, type ScareAbility } from '../abilities/ScareAbility';
 import { NORA_CONTENT } from '../content/nora';
+import { NORA_VISIT } from '../content/noraVisit';
 import { Ghost } from '../entities/Ghost';
 import { Npc, NPC_MAX_FEAR } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
@@ -34,6 +35,32 @@ import {
   tryStartScareCast,
   type ScareCastSession,
 } from '../scareCast/scareCastSession';
+import {
+  announceVisitor,
+  beginActiveHaunting,
+  beginVisitorDeparting,
+  createHauntingSession,
+  prepareNextVisit,
+  shouldAnnounceVisitor,
+  showResults,
+  tickLocationReady,
+  tickVisitorAnnounced,
+  type HauntingSession,
+} from '../session/hauntingSession';
+import { resetSessionForNewVisit } from '../session/sessionReset';
+import { isVisitorTargetable, targetableGateStatus } from '../session/targetableGate';
+import type { VisitorRouteState } from '../session/visitorRoute';
+import {
+  createVisitorRouteState,
+  resetVisitorRouteState,
+  tickVisitorRoute,
+} from '../session/visitorRoute';
+import { buildVisitResults } from '../session/visitResults';
+import {
+  shouldDepartOnRouteComplete,
+  shouldDepartOnSuccess,
+  visitOutcomeForDeparture,
+} from '../session/visitSuccess';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
@@ -42,7 +69,7 @@ import {
   nearestZoomStepIndex,
   resolveCameraZoom,
 } from '../world/lobbyGeometry';
-import { CAMERA, GHOST_START, NORA_ROUTE, WORLD } from '../world/lobbyLayout';
+import { CAMERA, GHOST_START, WORLD } from '../world/lobbyLayout';
 
 const OBJECTIVE =
   'Watch Nora closely, gather clues, then try a scare that fits what you learned.';
@@ -65,6 +92,13 @@ export class GameScene extends Phaser.Scene {
   private pinchStartStepIndex: number = CAMERA.defaultZoomStepIndex;
   private score = 0;
   private energy = 100;
+  private observationBonusTotal = 0;
+  private ineffectiveScareCount = 0;
+  private repeatedScareCount = 0;
+  private hauntingSession: HauntingSession = createHauntingSession();
+  private visitorRouteState: VisitorRouteState = createVisitorRouteState();
+  private readonly visitConfig = NORA_VISIT;
+  private departurePending = false;
   private observationSession: ObservationSession = createObservationSession();
   private scareCastSession: ScareCastSession = createScareCastSession();
   /** Last in-range sample while a scare cast is active (for leave-range status). */
@@ -91,7 +125,8 @@ export class GameScene extends Phaser.Scene {
     const environment = new LobbyEnvironment(this);
     this.ambience = new LobbyAmbience(this);
     this.ghost = new Ghost(this, GHOST_START.x, GHOST_START.y);
-    this.npc = new Npc(this, NORA_ROUTE[0].x, NORA_ROUTE[0].y);
+    this.npc = new Npc(this, this.visitConfig.spawn.x, this.visitConfig.spawn.y);
+    this.npc.setVisible(false);
     this.world.add([environment.container, this.ambience.container, this.npc, this.ghost]);
 
     this.discoveryState = resetDiscoveryState();
@@ -104,6 +139,7 @@ export class GameScene extends Phaser.Scene {
       onZoomOut: () => this.setZoomStep(this.zoomStepIndex + 1),
       onObserve: () => this.tryObserve(),
       onToggleClues: () => this.toggleCluePanel(),
+      onNextVisit: () => this.startNextVisit(),
     });
 
     this.setupCameras();
@@ -111,7 +147,7 @@ export class GameScene extends Phaser.Scene {
 
     this.hud.createAbilityControls(STARTING_ABILITIES, (ability) => this.useAbility(ability));
     this.hud.setClueEntries(this.npcContent.clues, this.discoveryState.discoveredClueIds);
-    this.hud.setStatus('Move with WASD or tap the floor. Press O or tap 👁 to observe Nora up close.');
+    this.hud.setStatus('You are home in the Crooked Moon lobby. A visitor may arrive soon…');
     this.updateHud();
     this.refreshObservationHud();
 
@@ -210,7 +246,8 @@ export class GameScene extends Phaser.Scene {
       Number(this.keys.down.isDown) - Number(this.keys.up.isDown),
     );
     this.ghost.update(delta);
-    this.npc.update(time, delta);
+    this.updateHauntingSession(delta);
+    this.updateVisitorRoute(time, delta);
     this.ambience.update(delta);
     this.updatePinchZoom();
     this.updateNpcIndicator();
@@ -224,6 +261,155 @@ export class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.observeKey)) this.tryObserve();
   }
 
+  private isTargetable(): boolean {
+    return isVisitorTargetable(this.hauntingSession.phase, this.visitorRouteState.presence);
+  }
+
+  private updateHauntingSession(delta: number): void {
+    if (this.hauntingSession.phase === 'locationReady') {
+      this.hauntingSession = tickLocationReady(this.hauntingSession, delta);
+      if (shouldAnnounceVisitor(this.hauntingSession, this.visitConfig.locationReadyAnnounceMs)) {
+        this.hauntingSession = announceVisitor(this.hauntingSession);
+        this.hud.setVisitCue('🔔', "Nora's on her way!");
+        this.hud.setStatus('Ding-dong! Get ready to sneak around…');
+      }
+      return;
+    }
+
+    if (this.hauntingSession.phase === 'visitorAnnounced') {
+      this.hauntingSession = tickVisitorAnnounced(
+        this.hauntingSession,
+        delta,
+        this.visitConfig.announceEnterDelayMs,
+      );
+      return;
+    }
+
+    if (this.hauntingSession.phase === 'results') {
+      return;
+    }
+  }
+
+  private updateVisitorRoute(time: number, delta: number): void {
+    const tick = tickVisitorRoute({
+      state: this.visitorRouteState,
+      config: this.visitConfig,
+      deltaMs: delta,
+      npcX: this.npc.x,
+      npcY: this.npc.y,
+      phase: this.hauntingSession.phase,
+    });
+    this.visitorRouteState = tick.state;
+
+    this.npc.updateVisitMovement(time, delta, {
+      shouldMove: tick.shouldMove,
+      targetX: tick.targetX,
+      targetY: tick.targetY,
+      pauseActive: tick.state.pauseRemainingMs > 0,
+      visible: tick.visible,
+      arrivalThreshold: this.visitConfig.entranceArrivalThreshold,
+    });
+
+    if (tick.enteredVisiting && this.hauntingSession.phase === 'visitorEntering') {
+      this.hauntingSession = beginActiveHaunting(this.hauntingSession);
+      this.hud.setVisitCue('👀', "Nora's here — observe & spook!");
+      this.hud.setStatus('Time to snoop and scare!');
+    }
+
+    if (
+      shouldDepartOnRouteComplete(tick.state.routeComplete, this.hauntingSession.phase) &&
+      !this.departurePending
+    ) {
+      this.triggerDeparture(false);
+    }
+
+    if (tick.reachedExit && this.hauntingSession.phase === 'visitorDeparting') {
+      this.hauntingSession = showResults(this.hauntingSession);
+      this.presentVisitResults();
+    }
+
+    if (this.hauntingSession.phase === 'visitorDeparting') {
+      this.hud.hideNpcIndicator();
+    }
+  }
+
+  private triggerDeparture(success: boolean): void {
+    if (this.departurePending || this.hauntingSession.phase !== 'activeHaunting') return;
+    this.departurePending = true;
+    const outcome = visitOutcomeForDeparture(success);
+    this.hauntingSession = beginVisitorDeparting(this.hauntingSession, outcome);
+    this.cancelActiveHauntActions(
+      success ? "She's bolting — epic haunt!" : 'She slipped away!',
+    );
+    this.hud.setVisitCue(success ? '👻' : '🚪', success ? 'Epic haunt!' : 'She got away!');
+  }
+
+  private cancelActiveHauntActions(statusMessage: string): void {
+    if (this.observationSession.status === 'observing') {
+      this.observationSession = cancelObservation(this.observationSession);
+      this.refreshObservationHud();
+    }
+    if (this.scareCastSession.status === 'casting') {
+      this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
+      this.refreshScareCastHud();
+    }
+    this.npc.setScareCastReaction(false);
+    this.hud.setStatus(statusMessage);
+  }
+
+  private presentVisitResults(): void {
+    const summary = buildVisitResults({
+      visitorName: this.visitConfig.visitorName,
+      outcome: this.hauntingSession.visitOutcome ?? 'unimpressed',
+      finalFearStage: this.npc.stage,
+      finalFear: this.npc.fear,
+      score: this.score,
+      observationBonusTotal: this.observationBonusTotal,
+      ineffectiveScareCount: this.ineffectiveScareCount,
+      repeatedScareCount: this.repeatedScareCount,
+      discoveredClueIds: this.discoveryState.discoveredClueIds,
+      clues: this.npcContent.clues,
+    });
+    this.hud.showVisitResults(summary);
+    this.hud.setGameplayLocked(true);
+    this.hud.setStatus('Haunt wrapped — tap Next visit for more mischief!');
+  }
+
+  private startNextVisit(): void {
+    if (this.hauntingSession.phase !== 'results') return;
+
+    const reset = resetSessionForNewVisit();
+    this.score = reset.runtime.score;
+    this.energy = reset.runtime.energy;
+    this.discoveryState = reset.runtime.discoveryState;
+    this.observationSession = reset.runtime.observationSession;
+    this.scareCastSession = reset.runtime.scareCastSession;
+    this.observationBonusTotal = reset.runtime.observationBonusTotal;
+    this.ineffectiveScareCount = reset.runtime.ineffectiveScareCount;
+    this.repeatedScareCount = reset.runtime.repeatedScareCount;
+    this.scareCastWasInRange = false;
+    this.scareCastNoraInRange = false;
+    this.departurePending = false;
+    this.resetScareCastHudCache();
+
+    this.npc.resetForVisit(this.visitConfig.spawn.x, this.visitConfig.spawn.y);
+    this.npc.setVisible(false);
+    this.visitorRouteState = resetVisitorRouteState();
+    this.hauntingSession = prepareNextVisit();
+
+    this.hud.hideVisitResults();
+    this.hud.hideVisitCue();
+    this.hud.setGameplayLocked(false);
+    this.hud.setCluePanelOpen(false);
+    this.hud.setClueEntries(this.npcContent.clues, this.discoveryState.discoveredClueIds);
+    this.hud.setObjective(false);
+    this.updateHud();
+    this.refreshObservationHud();
+    this.refreshScareCastHud();
+    this.hud.setStatus('The lobby settles… another visitor may arrive soon.');
+  }
+
   private npcDistance(): number {
     return Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, this.npc.x, this.npc.y);
   }
@@ -233,6 +419,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private tryObserve(): void {
+    if (!this.isTargetable()) {
+      this.hud.setStatus(targetableGateStatus(this.hauntingSession.phase, this.visitorRouteState.presence));
+      return;
+    }
+
     if (this.observationSession.status === 'observing') {
       this.hud.setStatus('Still observing Nora… stay close and watch the eye button.');
       return;
@@ -261,6 +452,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateObservation(delta: number): void {
+    if (!this.isTargetable() && this.observationSession.status === 'observing') {
+      this.observationSession = cancelObservation(this.observationSession);
+      this.hud.setStatus("Nora's leaving — observation cancelled.");
+      this.refreshObservationHud();
+      return;
+    }
+
     const wasObserving = this.observationSession.status === 'observing';
 
     if (!wasObserving) {
@@ -386,6 +584,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateScareCast(delta: number): void {
+    if (
+      !this.isTargetable() &&
+      this.scareCastSession.status === 'casting' &&
+      this.hauntingSession.phase === 'visitorDeparting'
+    ) {
+      this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
+      this.refreshScareCastHud();
+      return;
+    }
+
     if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
       this.scareCastWasInRange = false;
       this.refreshScareCastHud();
@@ -436,6 +645,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private useAbility(ability: ScareAbility): void {
+    if (!this.isTargetable()) {
+      this.hud.setStatus(targetableGateStatus(this.hauntingSession.phase, this.visitorRouteState.presence));
+      return;
+    }
+
     const affordable = this.energy >= ability.energyCost;
     const inRange = this.inAbilityRange(ability);
 
@@ -500,6 +714,9 @@ export class GameScene extends Phaser.Scene {
       );
     }
     this.discoveryState = bonus.discovery;
+    if (bonus.bonus > 0) {
+      this.observationBonusTotal += bonus.bonus;
+    }
 
     const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
     this.npc.syncFear(fear, getFearStage(fear));
@@ -507,6 +724,12 @@ export class GameScene extends Phaser.Scene {
 
     const ineffective = raw.strength === 'none';
     const failed = ineffective;
+    if (ineffective) {
+      this.ineffectiveScareCount += 1;
+    }
+    if (raw.noveltyMultiplier < 1) {
+      this.repeatedScareCount += 1;
+    }
 
     if (failed) {
       this.ghost.showFailedScareGlimpse();
@@ -523,15 +746,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     const repetitionNote = raw.noveltyMultiplier < 1
-      ? ` Novelty is down to ${Math.round(raw.noveltyMultiplier * 100)}%.`
+      ? ` That scare is getting stale (${Math.round(raw.noveltyMultiplier * 100)}% punch).`
       : '';
-    const bonusNote = bonus.bonus > 0 ? ` Observation bonus +${bonus.bonus}!` : '';
+    const bonusNote = bonus.bonus > 0 ? ` Sneaky spy bonus +${bonus.bonus}!` : '';
     this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${repetitionNote}`);
     this.updateHud();
 
-    if (this.npc.stage === 'possessed') {
-      this.hud.setStatus('Nora is goofily possessed — haunting complete! 👻');
-      this.hud.setObjective(true);
+    if (shouldDepartOnSuccess(this.npc.stage, this.visitConfig.successMinFearStage)) {
+      this.triggerDeparture(true);
     }
 
     this.time.delayedCall(1800, () => {
@@ -564,6 +786,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateNpcIndicator(): void {
+    if (
+      !this.npc.visible ||
+      this.hauntingSession.phase === 'results' ||
+      this.hauntingSession.phase === 'visitorDeparting'
+    ) {
+      this.hud.hideNpcIndicator();
+      return;
+    }
+
     const main = this.cameras.main;
     const { width, height } = this.scale.gameSize;
     const screenX = (this.npc.x - main.worldView.x) * main.zoom;
