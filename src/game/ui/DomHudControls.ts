@@ -16,6 +16,18 @@ export interface DomHudHandlers {
   readonly onZoomOut: () => void;
   readonly onObserve: () => void;
   readonly onNextVisit?: () => void;
+  readonly onSkipTutorial?: () => void;
+}
+
+export type DomTutorialHighlight = 'observe' | 'clues' | 'scareGrid' | 'results' | 'nextVisit' | null;
+
+export interface DomTutorialPresentation {
+  readonly instruction: string | null;
+  readonly icon: string | null;
+  readonly highlight: DomTutorialHighlight;
+  readonly showSkip: boolean;
+  readonly coachingHint: string | null;
+  readonly coachingIcon: string | null;
 }
 
 export interface DomVisitResultsView {
@@ -76,6 +88,11 @@ export class DomHudControls {
   private readonly resultsOverlay: HTMLElement;
   private readonly resultsBody: HTMLElement;
   private readonly nextVisitButton: HTMLButtonElement;
+  private readonly tutorialBanner: HTMLElement;
+  private readonly tutorialIcon: HTMLElement;
+  private readonly tutorialText: HTMLElement;
+  private readonly tutorialSkipButton: HTMLButtonElement;
+  private readonly actionGrid: HTMLElement;
   private cluePanelOpen = false;
   private gameplayLocked = false;
   private visitCueHideTimer = 0;
@@ -96,6 +113,7 @@ export class DomHudControls {
     this.objectiveButton.append(this.objectiveBadge);
 
     this.cluesButton = makeCornerButton('🧩', 'Review clues');
+    this.cluesButton.dataset.tutorialTarget = 'clues';
     this.cluesBadge = makeBadge();
     this.cluesButton.append(this.cluesBadge);
 
@@ -142,6 +160,7 @@ export class DomHudControls {
     observeWrap.className = 'dom-hud-observe-wrap';
     this.observeButton = makeActionButton('👁', 'Observe visitor');
     this.observeButton.classList.add('dom-hud-observe-button');
+    this.observeButton.dataset.tutorialTarget = 'observe';
     this.observeRangeMark = document.createElement('span');
     this.observeRangeMark.className = 'dom-hud-observe-range';
     this.observeRangeMark.textContent = '↔';
@@ -163,6 +182,8 @@ export class DomHudControls {
     actionGrid.className = 'dom-hud-action-grid';
     actionGrid.setAttribute('role', 'group');
     actionGrid.setAttribute('aria-label', 'Scare abilities');
+    actionGrid.dataset.tutorialTarget = 'scareGrid';
+    this.actionGrid = actionGrid;
 
     bottomLeft.append(ghostCard, observeWrap, actionGrid);
 
@@ -202,10 +223,36 @@ export class DomHudControls {
     this.nextVisitButton.className = 'dom-results-next-button';
     this.nextVisitButton.textContent = 'Next visit';
     this.nextVisitButton.setAttribute('aria-label', 'Start the next visit');
+    this.nextVisitButton.dataset.tutorialTarget = 'nextVisit';
     resultsPanel.append(this.resultsBody, this.nextVisitButton);
     this.resultsOverlay.append(resultsPanel);
+    this.resultsOverlay.dataset.tutorialTarget = 'results';
 
-    this.root.append(this.topLeftCluster, bottomLeft, zoom, this.visitCue, this.resultsOverlay);
+    this.tutorialBanner = document.createElement('div');
+    this.tutorialBanner.className = 'dom-tutorial-banner';
+    this.tutorialBanner.hidden = true;
+    this.tutorialBanner.setAttribute('role', 'status');
+    this.tutorialBanner.setAttribute('aria-live', 'polite');
+    this.tutorialIcon = document.createElement('span');
+    this.tutorialIcon.className = 'dom-tutorial-icon';
+    this.tutorialIcon.setAttribute('aria-hidden', 'true');
+    this.tutorialText = document.createElement('p');
+    this.tutorialText.className = 'dom-tutorial-text';
+    this.tutorialSkipButton = document.createElement('button');
+    this.tutorialSkipButton.type = 'button';
+    this.tutorialSkipButton.className = 'dom-tutorial-skip';
+    this.tutorialSkipButton.textContent = 'Skip help';
+    this.tutorialSkipButton.setAttribute('aria-label', 'Skip tutorial help');
+    this.tutorialBanner.append(this.tutorialIcon, this.tutorialText, this.tutorialSkipButton);
+
+    this.root.append(
+      this.topLeftCluster,
+      bottomLeft,
+      zoom,
+      this.visitCue,
+      this.tutorialBanner,
+      this.resultsOverlay,
+    );
     parent.append(this.root);
 
     bindPress(this.objectiveButton, () => {
@@ -228,6 +275,9 @@ export class DomHudControls {
     bindPress(this.nextVisitButton, () => {
       handlers.onNextVisit?.();
     });
+    bindPress(this.tutorialSkipButton, () => {
+      handlers.onSkipTutorial?.();
+    });
 
     this.setObjectiveNotification(true);
     this.setCluesNotification(false);
@@ -237,8 +287,8 @@ export class DomHudControls {
     abilities: readonly ScareAbility[],
     onActivate: (ability: ScareAbility) => void,
   ): void {
-    const grid = this.root.querySelector('.dom-hud-action-grid');
-    if (!grid) throw new Error('Missing action grid for DOM HUD controls.');
+    this.actionGrid.replaceChildren();
+    this.actionButtons.length = 0;
 
     abilities.forEach((ability, index) => {
       const button = makeActionButton(ability.emoji, ability.name);
@@ -274,9 +324,56 @@ export class DomHudControls {
         onActivate(ability);
       });
 
-      grid.append(button);
+      this.actionGrid.append(button);
       this.actionButtons.push({ button, lock, progressLabel, progressRing });
     });
+  }
+
+  setTutorialPresentation(presentation: DomTutorialPresentation): void {
+    const message =
+      presentation.instruction ??
+      presentation.coachingHint;
+    const icon = presentation.instruction
+      ? presentation.icon
+      : presentation.coachingIcon;
+
+    if (!message) {
+      this.tutorialBanner.hidden = true;
+      this.clearTutorialHighlights();
+      return;
+    }
+
+    this.tutorialIcon.textContent = icon ?? '💡';
+    this.tutorialText.textContent = message;
+    this.tutorialSkipButton.hidden = !presentation.showSkip;
+    this.tutorialBanner.hidden = false;
+    this.applyTutorialHighlight(presentation.highlight);
+  }
+
+  hideTutorialPresentation(): void {
+    this.tutorialBanner.hidden = true;
+    this.clearTutorialHighlights();
+  }
+
+  private applyTutorialHighlight(target: DomTutorialHighlight): void {
+    this.clearTutorialHighlights();
+    if (!target) return;
+
+    const selector = `[data-tutorial-target="${target}"]`;
+    const element = this.root.querySelector(selector);
+    if (element instanceof HTMLElement) {
+      element.classList.add('dom-tutorial-highlight');
+    }
+  }
+
+  private clearTutorialHighlights(): void {
+    this.root.querySelectorAll('.dom-tutorial-highlight').forEach((node) => {
+      node.classList.remove('dom-tutorial-highlight');
+    });
+  }
+
+  getTutorialBannerElement(): HTMLElement {
+    return this.tutorialBanner;
   }
 
   setClueEntries(entries: readonly DomCluePanelEntry[]): void {
