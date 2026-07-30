@@ -1,18 +1,19 @@
 ## ADDED Requirements
 
-### Requirement: Tutorial instruction presentation on mobile
-Guided onboarding instructions, contextual coaching hints, relevant control or visitor highlights, and Skip help SHALL remain readable on landscape phones, communicate with text and icons rather than colour alone, avoid rapid flashing, respect safe-area insets, and keep interactive targets at least 44 CSS pixels. Tutorial UI SHALL NOT use a blocking modal during active gameplay and SHALL NOT permanently cover movement, Observe, or scare controls.
+### Requirement: Tutorial prompt presentation on mobile
+Guided onboarding SHALL use centered OK/Skip prompts that remain readable on landscape phones, communicate with text and icons rather than colour alone, avoid rapid flashing, respect safe-area insets, and keep OK and Skip help at least 44 CSS pixels. While a guided prompt is open, player movement and haunt controls MAY be briefly locked until OK or Skip. After OK, prompts SHALL NOT permanently cover movement, Observe, or scare controls. Contextual coaching hints MAY use a compact non-blocking banner after guided mode ends.
 
-#### Scenario: Instruction chip on landscape
-- **WHEN** a guided onboarding instruction is shown on a landscape mobile viewport
+#### Scenario: Guided prompt on landscape
+- **WHEN** a guided onboarding prompt is shown on a landscape mobile viewport
 - **THEN** the instruction text is readable
-- **AND** Skip help is at least 44 CSS px
-- **AND** Observe and scare controls remain usable
+- **AND** OK and Skip help are each at least 44 CSS px
+- **AND** the prompt uses short mischievous copy
 
-#### Scenario: Highlight without colour-only meaning
-- **WHEN** onboarding highlights the Observe control
+#### Scenario: Highlight after prompt dismissed
+- **GIVEN** the player acknowledged the Observe-step prompt with OK
+- **WHEN** the Observe control is highlighted
 - **THEN** the highlight uses shape or icon affordance in addition to any colour
-- **AND** gameplay input is not blocked
+- **AND** Observe and scare controls are usable again
 
 ## MODIFIED Requirements
 

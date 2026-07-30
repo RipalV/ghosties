@@ -6,7 +6,6 @@ import type {
   OnboardingState,
   OnboardingStepId,
 } from './types';
-import { ONBOARDING_STEP_ORDER } from './types';
 
 export interface ReduceOnboardingResult {
   readonly state: OnboardingState;
@@ -19,12 +18,6 @@ const EMPTY_PRESENTATION: OnboardingPresentation = {
   highlight: null,
   showSkip: false,
 };
-
-function nextStep(step: OnboardingStepId): OnboardingStepId | 'complete' {
-  const index = ONBOARDING_STEP_ORDER.indexOf(step);
-  if (index < 0 || index >= ONBOARDING_STEP_ORDER.length - 1) return 'complete';
-  return ONBOARDING_STEP_ORDER[index + 1];
-}
 
 function presentationForStep(
   step: OnboardingStepId,
@@ -64,6 +57,8 @@ function finishSession(_state: OnboardingState): OnboardingState {
     step: null,
     sessionFinished: true,
     presentationVisible: false,
+    guestArrivalPending: false,
+    visitorTargetablePending: false,
   };
 }
 
@@ -95,52 +90,19 @@ function handleGuidedEvent(
   if (!step) return { state, presentation: EMPTY_PRESENTATION };
 
   switch (step) {
-    case 'moveNear':
-      if (event.type === 'enteredObserveRange') {
-        return advanceTo(state, nextStep(step), visitorName);
-      }
-      break;
-    case 'observe':
+    case 'moveNearObserve':
       if (event.type === 'observeCompletedWithClue') {
-        return advanceTo(state, nextStep(step), visitorName);
+        return advanceTo(state, 'reviewClues', visitorName);
       }
       break;
-    case 'reviewClue':
+    case 'reviewClues':
       if (event.type === 'cluePanelOpened') {
-        return advanceTo(state, nextStep(step), visitorName);
+        return advanceTo(state, 'chooseScareStayClose', visitorName);
       }
       break;
-    case 'chooseScare':
-      if (event.type === 'scareCastStarted') {
-        return advanceTo(state, nextStep(step), visitorName);
-      }
-      break;
-    case 'stayInRange':
-      if (event.type === 'scareCastInRange') {
-        return advanceTo(state, nextStep(step), visitorName);
-      }
-      break;
-    case 'understandExposure':
-      if (event.type === 'scareCastResolved') {
-        // Teach exposure on resolve, then hide until visit results appear so the player can keep scaring.
-        return {
-          state: {
-            ...state,
-            step: 'readResults',
-            presentationVisible: false,
-          },
-          presentation: EMPTY_PRESENTATION,
-        };
-      }
-      break;
-    case 'readResults':
-      if (event.type === 'resultsShown') {
-        return advanceTo(state, nextStep(step), visitorName);
-      }
-      break;
-    case 'startNextVisit':
-      if (event.type === 'nextVisitStarted') {
-        return advanceTo(state, 'complete', visitorName);
+    case 'chooseScareStayClose':
+      if (event.type === 'scareCastResolved' && event.exposure !== 'miss') {
+        return advanceTo(state, 'repeatLoop', visitorName);
       }
       break;
     default:
@@ -160,6 +122,39 @@ export function reduceOnboarding(
     return { state: finished, presentation: EMPTY_PRESENTATION };
   }
 
+  if (event.type === 'promptAcknowledged') {
+    if (state.mode !== 'guided' || !state.presentationVisible || !state.step) {
+      return { state, presentation: EMPTY_PRESENTATION };
+    }
+
+    if (state.step === 'repeatLoop') {
+      return { state: finishSession(state), presentation: EMPTY_PRESENTATION };
+    }
+
+    const dismissed: OnboardingState = {
+      ...state,
+      presentationVisible: false,
+    };
+
+    if (dismissed.step === 'welcome' && dismissed.guestArrivalPending) {
+      return advanceTo(
+        { ...dismissed, guestArrivalPending: false },
+        'guestMotive',
+        visitorName,
+      );
+    }
+
+    if (dismissed.step === 'guestMotive' && dismissed.visitorTargetablePending) {
+      return advanceTo(
+        { ...dismissed, visitorTargetablePending: false },
+        'moveNearObserve',
+        visitorName,
+      );
+    }
+
+    return { state: dismissed, presentation: EMPTY_PRESENTATION };
+  }
+
   if (event.type === 'departureStarted' || event.type === 'clearPresentation') {
     return {
       state: { ...state, presentationVisible: false },
@@ -167,41 +162,69 @@ export function reduceOnboarding(
     };
   }
 
-  if (event.type === 'visitorTargetable') {
-    if (
-      shouldOfferGuidedOnboarding(event.visitIndex, event.visitorId, state.sessionFinished)
-    ) {
+  if (event.type === 'sessionReady') {
+    if (state.mode === 'finished' || state.sessionFinished) {
+      return { state, presentation: EMPTY_PRESENTATION };
+    }
+    if (shouldOfferGuidedOnboarding(0, 'nora', state.sessionFinished)) {
       const started: OnboardingState = {
         mode: 'guided',
-        step: 'moveNear',
+        step: 'welcome',
         sessionFinished: false,
         presentationVisible: true,
+        guestArrivalPending: false,
+        visitorTargetablePending: false,
       };
       return withPresentation(started, visitorName, true);
     }
     return { state, presentation: EMPTY_PRESENTATION };
   }
 
-  if (state.mode !== 'guided') {
-    if (event.type === 'resultsShown' && state.step === 'readResults') {
-      return withPresentation(state, visitorName, false);
+  if (event.type === 'guestArriving') {
+    if (
+      !shouldOfferGuidedOnboarding(event.visitIndex, event.visitorId, state.sessionFinished) ||
+      state.mode !== 'guided'
+    ) {
+      return { state, presentation: EMPTY_PRESENTATION };
     }
+
+    if (state.step === 'welcome') {
+      if (!state.presentationVisible) {
+        return advanceTo({ ...state, guestArrivalPending: false }, 'guestMotive', visitorName);
+      }
+      return {
+        state: { ...state, guestArrivalPending: true },
+        presentation: EMPTY_PRESENTATION,
+      };
+    }
+
     return { state, presentation: EMPTY_PRESENTATION };
   }
 
-  if (event.type === 'resultsShown') {
-    const step = state.step;
-    if (step) {
-      const stepIndex = ONBOARDING_STEP_ORDER.indexOf(step);
-      const understandIndex = ONBOARDING_STEP_ORDER.indexOf('understandExposure');
-      if (stepIndex >= 0 && stepIndex <= understandIndex) {
-        return advanceTo(state, 'startNextVisit', visitorName);
-      }
-      if (step === 'readResults') {
-        return advanceTo(state, 'startNextVisit', visitorName);
-      }
+  if (event.type === 'visitorTargetable') {
+    if (state.mode !== 'guided') {
+      return { state, presentation: EMPTY_PRESENTATION };
     }
-    return handleGuidedEvent(state, event, visitorName);
+
+    if (state.step === 'guestMotive') {
+      if (!state.presentationVisible) {
+        return advanceTo(
+          { ...state, visitorTargetablePending: false },
+          'moveNearObserve',
+          visitorName,
+        );
+      }
+      return {
+        state: { ...state, visitorTargetablePending: true },
+        presentation: EMPTY_PRESENTATION,
+      };
+    }
+
+    return { state, presentation: EMPTY_PRESENTATION };
+  }
+
+  if (state.mode !== 'guided') {
+    return { state, presentation: EMPTY_PRESENTATION };
   }
 
   return handleGuidedEvent(state, event, visitorName);

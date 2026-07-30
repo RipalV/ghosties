@@ -20,165 +20,159 @@ describe('onboarding session gate', () => {
   });
 });
 
-describe('guided onboarding progression', () => {
-  it('starts at moveNear when Nora becomes targetable', () => {
-    const started = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora');
+function startGuidedWelcome() {
+  return reduceOnboarding(createOnboardingState(), { type: 'sessionReady' }, 'Nora');
+}
 
+function acknowledge(state: ReturnType<typeof reduceOnboarding>['state']) {
+  return reduceOnboarding(state, { type: 'promptAcknowledged' }, 'Nora');
+}
+
+describe('guided onboarding progression', () => {
+  it('starts with welcome when the lobby is ready', () => {
+    const started = startGuidedWelcome();
     expect(started.state.mode).toBe('guided');
-    expect(started.state.step).toBe('moveNear');
-    expect(started.presentation.instructionText).toContain('Nora');
+    expect(started.state.step).toBe('welcome');
+    expect(started.presentation.instructionText).toContain('ghost');
   });
 
-  it('does not start guided onboarding for Milo', () => {
-    const result = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
+  it('does not start guided onboarding for Milo via session events', () => {
+    let state = startGuidedWelcome().state;
+    state = acknowledge(state).state;
+    const miloArrival = reduceOnboarding(state, {
+      type: 'guestArriving',
       visitIndex: 1,
       visitorId: 'milo',
     }, 'Milo');
-
-    expect(result.state.mode).toBe('inactive');
-    expect(result.presentation.instructionText).toBeNull();
+    expect(miloArrival.state.step).toBe('welcome');
   });
 
-  it('advances moveNear when already in observation range at targetable', () => {
-    let state = createOnboardingState();
+  it('advances welcome to guest motive when Nora arrives', () => {
+    let state = acknowledge(startGuidedWelcome().state).state;
+    const motive = reduceOnboarding(state, {
+      type: 'guestArriving',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora');
+    expect(motive.state.step).toBe('guestMotive');
+    expect(motive.presentation.instructionText).toContain('fear');
+  });
+
+  it('queues guest motive if Nora arrives during the welcome prompt', () => {
+    let state = startGuidedWelcome().state;
+    state = reduceOnboarding(state, {
+      type: 'guestArriving',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora').state;
+    expect(state.guestArrivalPending).toBe(true);
+    expect(state.step).toBe('welcome');
+
+    const motive = acknowledge(state);
+    expect(motive.state.step).toBe('guestMotive');
+    expect(motive.presentation.instructionText).toContain('Nora');
+  });
+
+  it('advances through observe, clues, scare, and repeat on matching events', () => {
+    let state = acknowledge(startGuidedWelcome().state).state;
+    state = reduceOnboarding(state, {
+      type: 'guestArriving',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora').state;
+    state = acknowledge(state).state;
     state = reduceOnboarding(state, {
       type: 'visitorTargetable',
       visitIndex: 0,
       visitorId: 'nora',
     }, 'Nora').state;
-    expect(state.step).toBe('moveNear');
+    expect(state.step).toBe('moveNearObserve');
 
-    const advanced = reduceOnboarding(state, { type: 'enteredObserveRange' }, 'Nora');
-    expect(advanced.state.step).toBe('observe');
-    expect(advanced.presentation.instructionText).toContain('Observe');
-  });
-
-  it('advances steps only on matching events', () => {
-    let state = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
-
-    const invalidObserve = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora');
-    expect(invalidObserve.state.step).toBe('moveNear');
-
-    state = reduceOnboarding(state, { type: 'enteredObserveRange' }, 'Nora').state;
-    expect(state.step).toBe('observe');
-
+    state = acknowledge(state).state;
     state = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora').state;
-    expect(state.step).toBe('reviewClue');
+    expect(state.step).toBe('reviewClues');
 
+    state = acknowledge(state).state;
     state = reduceOnboarding(state, { type: 'cluePanelOpened' }, 'Nora').state;
-    expect(state.step).toBe('chooseScare');
+    expect(state.step).toBe('chooseScareStayClose');
 
-    state = reduceOnboarding(state, { type: 'scareCastStarted' }, 'Nora').state;
-    expect(state.step).toBe('stayInRange');
-
-    state = reduceOnboarding(state, { type: 'scareCastInRange' }, 'Nora').state;
-    expect(state.step).toBe('understandExposure');
-
-    const afterResolve = reduceOnboarding(state, { type: 'scareCastResolved', exposure: 'partial' }, 'Nora');
-    expect(afterResolve.state.step).toBe('readResults');
-    expect(afterResolve.state.presentationVisible).toBe(false);
-    expect(afterResolve.presentation.instructionText).toBeNull();
-  });
-
-  it('shows next-visit help when results appear after the first scare', () => {
-    let state = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
-
-    state = reduceOnboarding(state, { type: 'enteredObserveRange' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'cluePanelOpened' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastStarted' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastInRange' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastResolved', exposure: 'full' }, 'Nora').state;
-    expect(state.step).toBe('readResults');
-    expect(state.presentationVisible).toBe(false);
-
-    const shown = reduceOnboarding(state, { type: 'resultsShown' }, 'Nora');
-    expect(shown.state.step).toBe('startNextVisit');
-    expect(shown.presentation.instructionText).toContain('Next visit');
-  });
-
-  it('jumps to next-visit help when results appear mid-tutorial', () => {
-    let state = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
-
-    state = reduceOnboarding(state, { type: 'enteredObserveRange' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'cluePanelOpened' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastStarted' }, 'Nora').state;
-    expect(state.step).toBe('stayInRange');
-
-    const shown = reduceOnboarding(state, { type: 'resultsShown' }, 'Nora');
-    expect(shown.state.step).toBe('startNextVisit');
-    expect(shown.presentation.highlight).toBe('nextVisit');
-  });
-
-  it('skips end the guided sequence for the session', () => {
-    let state = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
-
-    const skipped = reduceOnboarding(state, { type: 'skipHelp' }, 'Nora');
-    expect(skipped.state.sessionFinished).toBe(true);
-    expect(skipped.state.mode).toBe('finished');
-    expect(skipped.presentation.instructionText).toBeNull();
-
-    const again = reduceOnboarding(skipped.state, {
-      type: 'visitorTargetable',
-      visitIndex: 2,
-      visitorId: 'nora',
+    state = acknowledge(state).state;
+    const afterScare = reduceOnboarding(state, {
+      type: 'scareCastResolved',
+      exposure: 'partial',
     }, 'Nora');
-    expect(again.state.mode).not.toBe('guided');
+    expect(afterScare.state.step).toBe('repeatLoop');
+    expect(afterScare.presentation.instructionText).toContain('again');
   });
 
-  it('completes after Next visit and does not restart in-session', () => {
-    let state = reduceOnboarding(createOnboardingState(), {
+  it('does not advance to repeat on a zero-exposure scare', () => {
+    let state = acknowledge(startGuidedWelcome().state).state;
+    state = reduceOnboarding(state, {
+      type: 'guestArriving',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora').state;
+    state = acknowledge(state).state;
+    state = reduceOnboarding(state, {
       type: 'visitorTargetable',
       visitIndex: 0,
       visitorId: 'nora',
     }, 'Nora').state;
-
-    state = reduceOnboarding(state, { type: 'enteredObserveRange' }, 'Nora').state;
+    state = acknowledge(state).state;
     state = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora').state;
+    state = acknowledge(state).state;
     state = reduceOnboarding(state, { type: 'cluePanelOpened' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastStarted' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastInRange' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'scareCastResolved', exposure: 'full' }, 'Nora').state;
-    state = reduceOnboarding(state, { type: 'resultsShown' }, 'Nora').state;
-    expect(state.step).toBe('startNextVisit');
+    state = acknowledge(state).state;
 
-    const finished = reduceOnboarding(state, { type: 'nextVisitStarted' }, 'Nora');
+    const miss = reduceOnboarding(state, { type: 'scareCastResolved', exposure: 'miss' }, 'Nora');
+    expect(miss.state.step).toBe('chooseScareStayClose');
+  });
+
+  it('acknowledges a prompt without advancing the step', () => {
+    let state = startGuidedWelcome().state;
+    const acknowledged = acknowledge(state);
+    expect(acknowledged.state.step).toBe('welcome');
+    expect(acknowledged.state.presentationVisible).toBe(false);
+  });
+
+  it('finishes guided mode after acknowledging the repeat prompt', () => {
+    let state = acknowledge(startGuidedWelcome().state).state;
+    state = reduceOnboarding(state, {
+      type: 'guestArriving',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora').state;
+    state = acknowledge(state).state;
+    state = reduceOnboarding(state, {
+      type: 'visitorTargetable',
+      visitIndex: 0,
+      visitorId: 'nora',
+    }, 'Nora').state;
+    state = acknowledge(state).state;
+    state = reduceOnboarding(state, { type: 'observeCompletedWithClue' }, 'Nora').state;
+    state = acknowledge(state).state;
+    state = reduceOnboarding(state, { type: 'cluePanelOpened' }, 'Nora').state;
+    state = acknowledge(state).state;
+    state = reduceOnboarding(state, { type: 'scareCastResolved', exposure: 'full' }, 'Nora').state;
+
+    const finished = acknowledge(state);
     expect(finished.state.sessionFinished).toBe(true);
     expect(finished.state.mode).toBe('finished');
   });
 
-  it('clears presentation on departure without finishing the session flag', () => {
-    const state = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
+  it('skips end the guided sequence for the session', () => {
+    const skipped = reduceOnboarding(startGuidedWelcome().state, { type: 'skipHelp' }, 'Nora');
+    expect(skipped.state.sessionFinished).toBe(true);
+    expect(skipped.state.mode).toBe('finished');
 
+    const again = reduceOnboarding(skipped.state, { type: 'sessionReady' }, 'Nora');
+    expect(again.state.mode).not.toBe('guided');
+  });
+
+  it('clears presentation on departure without finishing the session flag', () => {
+    let state = startGuidedWelcome().state;
     const cleared = reduceOnboarding(state, { type: 'departureStarted' }, 'Nora');
     expect(cleared.state.sessionFinished).toBe(false);
-    expect(cleared.presentation.instructionText).toBeNull();
     expect(cleared.state.presentationVisible).toBe(false);
   });
 });
@@ -208,11 +202,7 @@ describe('contextual coaching', () => {
   });
 
   it('does not offer coaching while guided onboarding is active', () => {
-    const guided = reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora').state;
+    const guided = startGuidedWelcome().state;
 
     const hint = selectCoachingHint({
       onboarding: guided,
@@ -242,9 +232,9 @@ describe('contextual coaching', () => {
 
 describe('onboarding content', () => {
   it('parameterises copy by visitor name without spoiling fears', () => {
-    const moveNear = ONBOARDING_STEP_CONTENT.moveNear.instruction('Milo');
-    expect(moveNear).toContain('Milo');
-    expect(moveNear.toLowerCase()).not.toContain('object');
+    const observe = ONBOARDING_STEP_CONTENT.moveNearObserve.instruction('Milo');
+    expect(observe).toContain('Milo');
+    expect(observe.toLowerCase()).not.toContain('object');
   });
 
   it('estimates route progress for coaching eligibility', () => {
@@ -259,11 +249,7 @@ describe('onboarding independence from gameplay', () => {
     const fear = 18;
     const energy = 77;
 
-    reduceOnboarding(createOnboardingState(), {
-      type: 'visitorTargetable',
-      visitIndex: 0,
-      visitorId: 'nora',
-    }, 'Nora');
+    reduceOnboarding(createOnboardingState(), { type: 'sessionReady' }, 'Nora');
     reduceOnboarding(createOnboardingState(), { type: 'skipHelp' }, 'Nora');
 
     expect(score).toBe(42);

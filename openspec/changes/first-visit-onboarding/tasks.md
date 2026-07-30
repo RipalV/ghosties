@@ -1,28 +1,23 @@
-## 1. Pure onboarding and coaching rules
+## 1. Revise pure onboarding rules for six-step prompts
 
-- [x] 1.1 Add typed onboarding steps, events, and pure reducer (`createOnboardingState` / `reduceOnboarding`) covering the eight first-visit steps with advance-only-on-matching-event behaviour
-- [x] 1.2 Add session gate helpers (first Nora visit only; complete/skip flag survives Next visit; no full sequence on Milo or later Nora visits in-session)
-- [x] 1.3 Add pure contextual coaching eligibility/selection (far away, Observe out of range, unreviewed clues, zero exposure, repeated ineffective, route nearly done) without revealing high fear
-- [x] 1.4 Add typed tutorial/coaching copy content parameterised by active visitor display name
+- [x] 1.1 Replace step ids with `welcome` → `guestMotive` → `moveNearObserve` → `reviewClues` → `chooseScareStayClose` → `repeatLoop`; update events (session ready, guest arriving, observe complete, clues opened, successful scare, OK, skip)
+- [x] 1.2 Rewrite reducer transitions: OK only clears presentation; gameplay/session events advance steps; Skip or OK on `repeatLoop` finishes the session; first-Nora gate unchanged
+- [x] 1.3 Rewrite typed prompt copy — short, mischievous, mobile-friendly; parameterise visitor name; no high-fear spoilers
+- [x] 1.4 Keep contextual coaching after skip/complete; adjust if step ids or finish conditions change
 
 ## 2. Presentation and scene wiring
 
-- [x] 2.1 Add HUD/DOM instruction chip, one-at-a-time highlight targets, and Skip help (≥44 CSS px) without blocking modals during active play
-- [x] 2.2 Wire GameScene gameplay events into onboarding/coaching reducers; apply presentation intents only; no hard-coded step progression in the scene
-- [x] 2.3 Clear tutorial presentation on departure, results, skip, and Next visit while preserving the session complete/skip flag across haunting-session reset
-- [x] 2.4 Ensure keyboard, mouse/pointer, and touch still drive Observe/scares/movement; landscape mobile + safe-area fit for tutorial chrome
+- [x] 2.1 Show welcome prompt when the lobby is ready (before Nora); show guest-motive prompt on first-visit arrival; show observe prompt when Nora is targetable (highlight Observe after OK)
+- [x] 2.2 Advance to clues prompt on observe-with-clue (highlight 🧩); advance to scare prompt on clues opened (highlight scare grid); advance to repeat prompt on successful scare (exposed resolve)
+- [x] 2.3 Preserve Skip help + OK (≥44 CSS px), input lock while prompt open, cleanup on departure/skip/next visit, session flag across reset
+- [x] 2.4 Update README for the six-step OK/Skip prompt flow
 
-## 3. Spec and README cleanup
+## 3. Tests and validation
 
-- [x] 3.1 Update README so Observe, scare exposure, off-screen indicator, and NPC counts refer to the active visitor / both visitors rather than Nora-only where generic
-- [x] 3.2 Align any remaining generic in-game status strings that still assume Nora is always active (keep Nora naming for first-tutorial content)
+- [x] 3.1 Update Vitest for new step order, welcome/motive timing, OK vs advance, successful-scare → repeat, skip/complete, Milo gate, non-mutation
+- [x] 3.2 Run `npm run check` / `npm run build`; fix regressions
 
-## 4. Tests and validation
+## 4. Playtest and preview
 
-- [x] 4.1 Add Vitest coverage for onboarding init, step progression, invalid events, skip, complete, no full onboarding on Milo, coaching eligibility, zero-exposure coaching, cleanup, independence from fear/session state, and non-mutation of score/fear/energy
-- [x] 4.2 Run `npm run check` and `npm run build`; fix regressions
-
-## 5. Playtest and preview
-
-- [ ] 5.1 Playtest desktop + landscape mobile: first Nora guided path, Skip path, later visits without full sequence, Milo contextual hints, keyboard/mouse/touch
-- [ ] 5.2 Open/verify Azure Static Web Apps PR preview for acceptance review
+- [ ] 4.1 Playtest desktop + landscape mobile: welcome → motive → observe → clues → scare → repeat, Skip path, later visits without full sequence
+- [ ] 4.2 Open/verify Azure Static Web Apps PR preview for acceptance review

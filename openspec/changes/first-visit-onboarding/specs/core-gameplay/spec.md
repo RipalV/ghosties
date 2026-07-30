@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Onboarding teaches the visit loop without changing rules
-Guided first-visit onboarding and contextual coaching SHALL teach the visit-bounded core loop (move near, observe, review clues, scare with exposure, read results, next visit) without modifying fear profiles, informative outcomes, failed-scare glimpses, fear stage progression, energy, score, route timing, or child-friendly content constraints.
+Guided first-visit onboarding and contextual coaching SHALL teach the visit-bounded core loop (welcome, guest motive, move near, observe, review clues, scare while close, repeat) without modifying fear profiles, informative outcomes, failed-scare glimpses, fear stage progression, energy, score, route timing, or child-friendly content constraints.
 
 #### Scenario: Tutorial does not bypass fear rules
 - **GIVEN** guided onboarding is active during the first Nora visit
@@ -32,8 +32,8 @@ The core gameplay loop SHALL be bounded by a visit: the ghost waits in the hotel
 
 #### Scenario: First Nora visit may include guided onboarding
 - **GIVEN** a new browser session’s first visit is Nora
-- **WHEN** Nora becomes targetable
-- **THEN** guided onboarding MAY start
+- **WHEN** the lobby is ready or Nora becomes targetable
+- **THEN** guided onboarding MAY show welcome and subsequent prompts
 - **AND** core fear and score rules remain unchanged
 
 ### Requirement: Performing scare is visible in the world

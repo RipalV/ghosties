@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Scene wires tutorial events without owning progression
-`GameScene` SHALL forward gameplay events (visitor targetable, enter observe range, observe complete, clue panel opened, scare cast started, scare cast resolved with exposure band, results shown, next visit, skip help) into pure onboarding and coaching modules and SHALL apply only the presentation intents those modules return. Tutorial step progression and hint eligibility SHALL NOT be hard-coded as permanent branching inside `GameScene`. Tutorial presentation SHALL clear on departure, results, skip, and next visit as specified by onboarding rules.
+`GameScene` SHALL forward gameplay and session events (session ready, guest arriving, visitor targetable, observe complete with clue, clue panel opened, successful scare resolve, skip help, prompt acknowledged, departure, next visit) into pure onboarding and coaching modules and SHALL apply only the presentation intents those modules return (prompt text, OK/Skip, highlights). Tutorial step progression and hint eligibility SHALL NOT be hard-coded as permanent branching inside `GameScene`. Tutorial presentation SHALL clear on departure, skip, and next visit as specified by onboarding rules.
 
 #### Scenario: Scene does not hard-code step order
 - **GIVEN** guided onboarding is active
@@ -10,7 +10,7 @@
 - **AND** `GameScene` does not contain a permanent hard-coded list of step transitions outside that module
 
 #### Scenario: Tutorial presentation clears on next visit
-- **GIVEN** a guided instruction or highlight is visible
+- **GIVEN** a guided prompt or highlight is visible
 - **WHEN** the player chooses Next visit
 - **THEN** tutorial presentation clears
 - **AND** session onboarding completion/skip state is preserved separately from fear and clue reset

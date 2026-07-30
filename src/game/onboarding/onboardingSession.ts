@@ -21,6 +21,8 @@ export function createOnboardingState(sessionFinished = false): OnboardingState 
     step: null,
     sessionFinished,
     presentationVisible: false,
+    guestArrivalPending: false,
+    visitorTargetablePending: false,
   };
 }
 

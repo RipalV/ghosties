@@ -17,6 +17,7 @@ export interface DomHudHandlers {
   readonly onObserve: () => void;
   readonly onNextVisit?: () => void;
   readonly onSkipTutorial?: () => void;
+  readonly onAcknowledgeTutorial?: () => void;
 }
 
 export type DomTutorialHighlight = 'observe' | 'clues' | 'scareGrid' | 'results' | 'nextVisit' | null;
@@ -91,10 +92,15 @@ export class DomHudControls {
   private readonly tutorialBanner: HTMLElement;
   private readonly tutorialIcon: HTMLElement;
   private readonly tutorialText: HTMLElement;
-  private readonly tutorialSkipButton: HTMLButtonElement;
+  private readonly tutorialPromptOverlay: HTMLElement;
+  private readonly tutorialPromptIcon: HTMLElement;
+  private readonly tutorialPromptText: HTMLElement;
+  private readonly tutorialOkButton: HTMLButtonElement;
+  private readonly tutorialPromptSkipButton: HTMLButtonElement;
   private readonly actionGrid: HTMLElement;
   private cluePanelOpen = false;
   private gameplayLocked = false;
+  private tutorialPromptOpen = false;
   private visitCueHideTimer = 0;
 
   constructor(parent: HTMLElement, handlers: DomHudHandlers) {
@@ -238,12 +244,41 @@ export class DomHudControls {
     this.tutorialIcon.setAttribute('aria-hidden', 'true');
     this.tutorialText = document.createElement('p');
     this.tutorialText.className = 'dom-tutorial-text';
-    this.tutorialSkipButton = document.createElement('button');
-    this.tutorialSkipButton.type = 'button';
-    this.tutorialSkipButton.className = 'dom-tutorial-skip';
-    this.tutorialSkipButton.textContent = 'Skip help';
-    this.tutorialSkipButton.setAttribute('aria-label', 'Skip tutorial help');
-    this.tutorialBanner.append(this.tutorialIcon, this.tutorialText, this.tutorialSkipButton);
+    this.tutorialBanner.append(this.tutorialIcon, this.tutorialText);
+
+    this.tutorialPromptOverlay = document.createElement('div');
+    this.tutorialPromptOverlay.className = 'dom-tutorial-prompt-overlay';
+    this.tutorialPromptOverlay.hidden = true;
+    const tutorialPromptPanel = document.createElement('div');
+    tutorialPromptPanel.className = 'dom-tutorial-prompt-panel';
+    tutorialPromptPanel.setAttribute('role', 'dialog');
+    tutorialPromptPanel.setAttribute('aria-modal', 'true');
+    tutorialPromptPanel.setAttribute('aria-labelledby', 'dom-tutorial-prompt-text');
+    this.tutorialPromptIcon = document.createElement('span');
+    this.tutorialPromptIcon.className = 'dom-tutorial-prompt-icon';
+    this.tutorialPromptIcon.setAttribute('aria-hidden', 'true');
+    this.tutorialPromptText = document.createElement('p');
+    this.tutorialPromptText.id = 'dom-tutorial-prompt-text';
+    this.tutorialPromptText.className = 'dom-tutorial-prompt-text';
+    const tutorialPromptActions = document.createElement('div');
+    tutorialPromptActions.className = 'dom-tutorial-prompt-actions';
+    this.tutorialOkButton = document.createElement('button');
+    this.tutorialOkButton.type = 'button';
+    this.tutorialOkButton.className = 'dom-tutorial-ok';
+    this.tutorialOkButton.textContent = 'OK';
+    this.tutorialOkButton.setAttribute('aria-label', 'Got it');
+    this.tutorialPromptSkipButton = document.createElement('button');
+    this.tutorialPromptSkipButton.type = 'button';
+    this.tutorialPromptSkipButton.className = 'dom-tutorial-skip';
+    this.tutorialPromptSkipButton.textContent = 'Skip help';
+    this.tutorialPromptSkipButton.setAttribute('aria-label', 'Skip tutorial help');
+    tutorialPromptActions.append(this.tutorialOkButton, this.tutorialPromptSkipButton);
+    tutorialPromptPanel.append(
+      this.tutorialPromptIcon,
+      this.tutorialPromptText,
+      tutorialPromptActions,
+    );
+    this.tutorialPromptOverlay.append(tutorialPromptPanel);
 
     this.root.append(
       this.topLeftCluster,
@@ -251,6 +286,7 @@ export class DomHudControls {
       zoom,
       this.visitCue,
       this.tutorialBanner,
+      this.tutorialPromptOverlay,
       this.resultsOverlay,
     );
     parent.append(this.root);
@@ -275,7 +311,10 @@ export class DomHudControls {
     bindPress(this.nextVisitButton, () => {
       handlers.onNextVisit?.();
     });
-    bindPress(this.tutorialSkipButton, () => {
+    bindPress(this.tutorialOkButton, () => {
+      handlers.onAcknowledgeTutorial?.();
+    });
+    bindPress(this.tutorialPromptSkipButton, () => {
       handlers.onSkipTutorial?.();
     });
 
@@ -330,40 +369,55 @@ export class DomHudControls {
   }
 
   setTutorialPresentation(presentation: DomTutorialPresentation): void {
-    const message =
-      presentation.instruction ??
-      presentation.coachingHint;
-    const icon = presentation.instruction
-      ? presentation.icon
-      : presentation.coachingIcon;
-
-    if (!message) {
+    if (presentation.instruction) {
+      this.tutorialPromptIcon.textContent = presentation.icon ?? '💡';
+      this.tutorialPromptText.textContent = presentation.instruction;
+      this.tutorialPromptSkipButton.hidden = !presentation.showSkip;
+      this.showTutorialPrompt(true);
       this.tutorialBanner.hidden = true;
       this.clearTutorialHighlights();
       return;
     }
 
-    this.tutorialIcon.textContent = icon ?? '💡';
-    this.tutorialText.textContent = message;
-    this.tutorialSkipButton.hidden = !presentation.showSkip;
+    this.showTutorialPrompt(false);
+
+    const coachingMessage = presentation.coachingHint;
+    if (!coachingMessage) {
+      this.tutorialBanner.hidden = true;
+      this.clearTutorialHighlights();
+      return;
+    }
+
+    this.tutorialIcon.textContent = presentation.coachingIcon ?? '💡';
+    this.tutorialText.textContent = coachingMessage;
     this.tutorialBanner.hidden = false;
-    this.applyTutorialHighlight(presentation.highlight);
+    this.clearTutorialHighlights();
   }
 
   hideTutorialPresentation(): void {
+    this.showTutorialPrompt(false);
     this.tutorialBanner.hidden = true;
     this.clearTutorialHighlights();
   }
 
-  private applyTutorialHighlight(target: DomTutorialHighlight): void {
+  setTutorialHighlight(target: DomTutorialHighlight): void {
     this.clearTutorialHighlights();
     if (!target) return;
-
     const selector = `[data-tutorial-target="${target}"]`;
     const element = this.root.querySelector(selector);
     if (element instanceof HTMLElement) {
       element.classList.add('dom-tutorial-highlight');
     }
+  }
+
+  isTutorialPromptOpen(): boolean {
+    return this.tutorialPromptOpen;
+  }
+
+  private showTutorialPrompt(open: boolean): void {
+    this.tutorialPromptOpen = open;
+    this.tutorialPromptOverlay.hidden = !open;
+    this.applyGameplayLock();
   }
 
   private clearTutorialHighlights(): void {
@@ -374,6 +428,10 @@ export class DomHudControls {
 
   getTutorialBannerElement(): HTMLElement {
     return this.tutorialBanner;
+  }
+
+  getTutorialPromptOverlayElement(): HTMLElement {
+    return this.tutorialPromptOverlay;
   }
 
   setClueEntries(entries: readonly DomCluePanelEntry[]): void {
@@ -573,7 +631,10 @@ export class DomHudControls {
   }
 
   private applyGameplayLock(): void {
-    const locked = this.gameplayLocked || !this.resultsOverlay.hidden;
+    const locked =
+      this.gameplayLocked ||
+      !this.resultsOverlay.hidden ||
+      this.tutorialPromptOpen;
     this.observeButton.disabled = locked;
     this.actionButtons.forEach(({ button }) => {
       button.disabled = locked;

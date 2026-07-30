@@ -2,24 +2,19 @@ import type { ExposureOutcomeKind } from '../scareCast/scareCastExposure';
 import type { VisitorId } from '../content/visitorRegistry';
 
 export type OnboardingStepId =
-  | 'moveNear'
-  | 'observe'
-  | 'reviewClue'
-  | 'chooseScare'
-  | 'stayInRange'
-  | 'understandExposure'
-  | 'readResults'
-  | 'startNextVisit';
+  | 'welcome'
+  | 'guestMotive'
+  | 'moveNearObserve'
+  | 'reviewClues'
+  | 'chooseScareStayClose'
+  | 'repeatLoop';
 
 export type OnboardingMode = 'inactive' | 'guided' | 'finished';
 
 export type TutorialHighlightTarget =
-  | 'visitor'
   | 'observe'
   | 'clues'
   | 'scareGrid'
-  | 'results'
-  | 'nextVisit'
   | null;
 
 export interface OnboardingPresentation {
@@ -34,29 +29,27 @@ export interface OnboardingState {
   readonly step: OnboardingStepId | null;
   readonly sessionFinished: boolean;
   readonly presentationVisible: boolean;
+  readonly guestArrivalPending: boolean;
+  readonly visitorTargetablePending: boolean;
 }
 
 export type OnboardingEvent =
+  | { readonly type: 'sessionReady' }
+  | { readonly type: 'guestArriving'; readonly visitIndex: number; readonly visitorId: VisitorId }
   | { readonly type: 'visitorTargetable'; readonly visitIndex: number; readonly visitorId: VisitorId }
-  | { readonly type: 'enteredObserveRange' }
   | { readonly type: 'observeCompletedWithClue' }
   | { readonly type: 'cluePanelOpened' }
-  | { readonly type: 'scareCastStarted' }
-  | { readonly type: 'scareCastInRange' }
   | { readonly type: 'scareCastResolved'; readonly exposure: ExposureOutcomeKind }
-  | { readonly type: 'resultsShown' }
-  | { readonly type: 'nextVisitStarted' }
   | { readonly type: 'skipHelp' }
+  | { readonly type: 'promptAcknowledged' }
   | { readonly type: 'departureStarted' }
   | { readonly type: 'clearPresentation' };
 
 export const ONBOARDING_STEP_ORDER: readonly OnboardingStepId[] = [
-  'moveNear',
-  'observe',
-  'reviewClue',
-  'chooseScare',
-  'stayInRange',
-  'understandExposure',
-  'readResults',
-  'startNextVisit',
+  'welcome',
+  'guestMotive',
+  'moveNearObserve',
+  'reviewClues',
+  'chooseScareStayClose',
+  'repeatLoop',
 ] as const;

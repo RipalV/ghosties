@@ -1,93 +1,88 @@
 ## Context
 
-Ghosties has a complete two-visitor visit loop (registry, rotation, observe, scare-cast exposure, results, next visit) with pure domain modules under `src/game/`. Presentation lives in `GameHud` / DOM controls and `GameScene` coordination. New players aged 7+ still learn the loop mainly from the README; there is no in-game teach-through-play path.
-
-This change adds guided first-visit onboarding and light contextual coaching as **pure, non-mutating** layers that observe gameplay events and drive presentation only.
+Ghosties already has a two-visitor haunt loop and a partially implemented first-visit onboarding layer (`src/game/onboarding/`, OK/Skip prompt overlay in `DomHudControls`). Playtesting showed mid-play banner instructions were hard to follow. The product direction is: **short mischievous prompts** the player dismisses with **OK** (or **Skip help**), then they perform the taught action; the next prompt appears when that action succeeds.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Guided sequence on the first Nora visit of the browser session teaching move-near → Observe → review clue → choose scare → stay in range → exposure outcomes → results → next visit.
-- Steps advance only from real gameplay events; invalid events do not advance.
-- One short instruction at a time, HUD/visitor highlights, Skip help (≥44 CSS px), keyboard/mouse/touch, landscape-mobile safe areas — no modal blocking active play.
-- Contextual hints after complete/skip for stuck patterns without revealing hidden fears or changing outcomes.
-- Tutorial state separate from haunting-session, fear, clues, score, energy; session-scoped only (reload may reset).
-- Pure TypeScript rules + typed copy; Phaser/DOM present only; reuse active-visitor abstractions.
-- Spec/README cleanup so generic systems say active visitor, not Nora-only.
+- Six guided prompts on the first Nora visit of the browser session:
+  1. Welcome / game intro (before guest arrives)
+  2. Guest arrival motive (aim for a high scare / fear climb)
+  3. Move close + Observe (highlight Observe) when guest is targetable
+  4. Open clues (highlight 🧩) when Observe unlocks a clue
+  5. Choose a scare and stay close (highlight scare grid) after clues opened
+  6. Repeat the loop after a successful scare
+- Fun, mischievous, short copy that fits landscape mobile.
+- Skip help ends the full sequence for the session; OK only dismisses the current prompt.
+- Steps advance only from real gameplay events after the matching prompt was acknowledged (or after skip ends guidance).
+- Non-mutating tutorial layer; pure rules + typed content; highlights on Observe / clues / scare grid.
+- Contextual coaching after skip/complete for stuck patterns (no fear spoilers).
 
 **Non-Goals:**
 
-- New visitors, abilities, props, possession, rooms, saved tutorial progress, accounts, voice, achievements, multiplayer, monetisation.
+- Pausing Nora’s route timing permanently (prompts briefly block player input only while open).
+- Teaching results / Next visit as dedicated guided steps (results UI already explains itself).
+- Persistence across reloads; accounts; new visitors/abilities; fear spoiling.
 
 ## Decisions
 
-### 1. Pure tutorial state machine
+### 1. Six-step prompt sequence (replaces eight-step banner)
 
-- **Decision:** Add `src/game/onboarding/` (or `tutorial/`) with typed steps, events, and a pure reducer: `createOnboardingState` → `reduceOnboarding(state, event) → { state, presentation }`. Events mirror gameplay (visitor targetable, entered observe range, observe completed, clue panel opened, scare cast started/resolved with exposure band, results shown, next visit, skip).
-- **Why:** Keeps progression out of `GameScene`; deterministic Vitest coverage; matches architecture rules.
-- **Alternatives considered:** Step flags inside `GameScene` — rejected (hard to test; Nora branching risk). Phaser timelines — rejected (not pure).
+- **Decision:** Steps = `welcome` → `guestMotive` → `moveNearObserve` → `reviewClues` → `chooseScareStayClose` → `repeatLoop`. Presentation = centered prompt with OK + Skip (≥44 CSS px). After OK, hide prompt and unlock controls; highlight the relevant control when useful.
+- **Why:** Matches accepted playtest flow; mobile-readable; one tip at a time.
+- **Alternatives considered:** Persistent banner — rejected (easy to ignore). Blocking checklist of all steps — rejected (overwhelming).
 
-### 2. First-Nora session gate
+### 2. Welcome before guest; motive on arrival
 
-- **Decision:** Full guided sequence starts only when `visitIndex === 0` / active visitor is Nora and `onboardingCompletedOrSkipped === false` for the browser tab session. Completing the final step or Skip sets a session flag so later Nora/Milo visits never re-run the full sequence. Milo may still evaluate contextual coaching.
-- **Why:** Matches acceptance; uses existing rotation without new persistence.
-- **Alternatives considered:** localStorage persistence — out of scope. Tutorial on every first-of-type visitor — rejected (acceptance: first Nora only).
+- **Decision:** Fire `sessionStarted` / welcome when the lobby is ready (ghost controllable, no visitor yet). Fire `guestArriving` when the first Nora visit begins entering (or when visit cue shows). Advance to `moveNearObserve` when Nora becomes targetable (after motive was shown/acknowledged).
+- **Why:** Introduces fantasy and goal before action pressure.
+- **Alternatives considered:** Start only on targetable — rejected (misses welcome).
 
-### 3. Non-mutating contract
+### 3. Combined observe and scare tips
 
-- **Decision:** Onboarding/coaching modules MUST NOT call fear, score, energy, route, cast, or discovery mutators. They only emit presentation intents (instruction text, highlight target id, hint id). Scene applies presentation; gameplay systems unchanged.
-- **Why:** Acceptance criteria 3 and 10; regression tests assert identical fear/score/energy for the same scare sequence with tutorial on/off.
-- **Alternatives considered:** Soften energy during tutorial — rejected (changes outcomes).
+- **Decision:** One prompt covers “get close + Observe”; one covers “pick scare + stay close while casting.” Advance observe→clues on `observeCompletedWithClue`; scare→repeat on successful scare (`scareCastResolved` with exposure that applies an outcome, i.e. not zero/miss).
+- **Why:** Fewer interruptions; matches player language.
+- **Alternatives considered:** Separate stay-in-range and exposure lessons — dropped for brevity.
 
-### 4. Presentation via HUD overlay, not modals
+### 4. Repeat loop ends guided mode
 
-- **Decision:** Compact instruction chip/banner + optional highlight ring on Observe / clue / scare / visitor / results, plus persistent Skip help control. Reuse toast/chip language where practical. No full-screen modal during active haunting.
-- **Why:** Freedom to experiment; mobile HUD already crowded.
-- **Alternatives considered:** Blocking modal checklist — rejected by acceptance.
+- **Decision:** After a successful scare, show the repeat prompt. OK (or Skip) marks guided onboarding finished for the session. Player may keep haunting freely; contextual coaching may still tip if stuck. Later visits never re-run the full sequence.
+- **Why:** Teaches the loop without trapping the player in endless prompts.
+- **Alternatives considered:** Re-queue observe prompt forever — rejected (spam).
 
-### 5. Typed tutorial content
+### 5. Prompt acknowledgement vs progression
 
-- **Decision:** Store step copy, highlight targets, and coaching messages in typed content (parameterised with active visitor `displayName`). First-visit sequence ids are fixed; coaching keys are enums. No fear category names that spoil the solution.
-- **Why:** Spec requires content outside scene; visitor-agnostic coaching for Milo.
-- **Alternatives considered:** Hard-coded strings in GameScene — rejected.
+- **Decision:** `promptAcknowledged` only clears `presentationVisible`. Step id advances only on matching gameplay events (or visit lifecycle for welcome→motive→targetable). Invalid events do not advance.
+- **Why:** Player must try the action; OK is not “next slide.”
+- **Exception:** Welcome → guestMotive advances on guest arrival event (not a player action). Motive → moveNearObserve advances when visitor becomes targetable.
 
-### 6. Contextual coaching eligibility
+### 6. Copy tone and length
 
-- **Decision:** Pure `selectContextualHint(input)` after guided mode ends (or was skipped). Inputs: distance/in-range flags, observe-out-of-range attempt, discovered-but-unreviewed clues, zero-exposure resolve, repeated ineffective category count, route progress near end. Cooldown / one-shot per hint type per visit to avoid spam. Hints never name the visitor’s high fear category.
-- **Why:** Testable eligibility without Phaser.
-- **Alternatives considered:** Always-on tips during guided steps — rejected (noise); reveal fear after N fails — rejected (spoils investigation).
+- **Decision:** Typed content strings, mischievous/comedic, ~1 short sentence each, parameterised by visitor `displayName` where needed. No high-fear category names.
+- **Why:** Ages 7+; mobile banner width.
 
-### 7. Cleanup hooks
+### 7. Non-mutating + first-Nora gate (unchanged intent)
 
-- **Decision:** On departure start, results enter, Skip, and Next visit: clear active instruction/highlight presentation; keep session `completedOrSkipped` flag. Do not reset that flag on session reset between visits.
-- **Why:** Prevents stale UI over results; isolation from haunting reset helpers.
-- **Alternatives considered:** Clear completion flag on Next visit — rejected (would re-show full sequence).
-
-### 8. Spec/README Nora cleanup
-
-- **Decision:** In modified specs, rewrite generic requirement prose and scenarios that incorrectly assume Nora is always the active visitor (off-screen indicator, fear chip, scare exposure messaging, Observe labels). Keep Nora named only where the first tutorial visit or Nora-specific content is under test.
-- **Why:** Proposal acceptance criterion 11.
+- **Decision:** Onboarding never mutates fear/score/energy/route/cast maths. Full sequence only when `visitIndex === 0` / Nora and session not finished.
+- **Why:** Existing acceptance criteria.
 
 ## Risks / Trade-offs
 
-- **[Risk] Guided steps race the visitor route** → Mitigation: do not pause route; keep instructions short; coaching covers “almost leaving.”
-- **[Risk] Highlight clutter on short landscape HUD** → Mitigation: one highlight at a time; ≥44 CSS px Skip; playtest task.
-- **[Risk] Soft spoilers in coaching** → Mitigation: ban high-fear category names in hint copy; review in content file.
-- **[Risk] Event wiring gaps in GameScene** → Mitigation: explicit event map in design/tasks; unit tests for each transition.
-- **[Risk] Players skip immediately** → Mitigation: contextual coaching still available; Skip is required for freedom.
+- **[Risk] Nora walks while prompts are open** → Mitigation: keep copy short; player input locked while prompt open; do not pause route (fun chaos OK).
+- **[Risk] “Successful scare” definition unclear** → Mitigation: define as cast resolve with applied exposure (not zero/miss); ineffective-but-exposed still counts as “landed” for teaching the loop.
+- **[Risk] Player skips welcome** → Mitigation: Skip ends all guided help; coaching still available.
+- **[Risk] Clue panel already open when observe completes** → Mitigation: if panel open, still require a toggle/open event or treat already-open as satisfying after acknowledge—prefer requiring an open/toggle so the control is taught.
 
 ## Migration Plan
 
-1. Add pure onboarding + coaching modules and content.
-2. Wire GameScene events → reducer; HUD presentation + Skip.
-3. Gate first Nora visit; cleanup on departure/results/next/skip.
-4. Spec/README Nora→active visitor cleanup.
-5. Vitest + `npm run check` / `npm run build`.
-6. Playtest + Azure SWA PR preview.
+1. Rewrite onboarding step ids, content, and reducer transitions.
+2. Wire welcome at scene start; guest arriving; targetable; observe; clues; successful scare.
+3. Align HUD highlights (observe / clues / scareGrid) with prompts.
+4. Update Vitest + README; run `npm run check`.
+5. Playtest mobile landscape.
 
 ## Open Questions
 
-- Exact short copy for each of the eight steps — lock friendly drafts in content; playtest may tweak wording only.
-- Whether “review a discovered clue” requires opening the clue panel vs. seeing the toast reveal — prefer **opening/toggling the clue panel** so the control is taught.
-- Whether zero-exposure must be experienced during guided steps or only taught via copy after any resolve — prefer advancing the exposure-understanding step after **any** completed cast resolve that reports full, partial, or zero, with coaching reinforcing zero later if needed.
+- Exact mischievous one-liners — draft in content; tweak in playtest only.
+- Whether “successful scare” requires fear gain vs any exposed resolve — prefer **any exposed resolve** so first Whisper-ish attempts still teach the loop.

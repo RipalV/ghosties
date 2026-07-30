@@ -80,8 +80,8 @@ import {
 } from '../onboarding/contextualCoaching';
 import { createOnboardingState, onboardingSessionFinished } from '../onboarding/onboardingSession';
 import { reduceOnboarding } from '../onboarding/onboardingReducer';
-import type { DomTutorialHighlight } from '../ui/DomHudControls';
-import type { OnboardingEvent, OnboardingPresentation, TutorialHighlightTarget } from '../onboarding/types';
+import { highlightForOnboardingStep } from '../onboarding/onboardingContent';
+import type { OnboardingEvent, OnboardingPresentation } from '../onboarding/types';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
@@ -134,8 +134,6 @@ export class GameScene extends Phaser.Scene {
   private cluePanelReviewedThisVisit = false;
   private farFromVisitorMs = 0;
   private lastResolvedExposure: ExposureOutcomeKind | null = null;
-  private wasInObserveRange = false;
-  private scareCastReportedInRange = false;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
   private abilityKeys!: Phaser.Input.Keyboard.Key[];
   private observeKey!: Phaser.Input.Keyboard.Key;
@@ -167,6 +165,7 @@ export class GameScene extends Phaser.Scene {
       onToggleClues: () => this.toggleCluePanel(),
       onNextVisit: () => this.startNextVisit(),
       onSkipTutorial: () => this.skipTutorial(),
+      onAcknowledgeTutorial: () => this.acknowledgeTutorial(),
     });
     this.applyVisitorPresentation();
 
@@ -182,6 +181,8 @@ export class GameScene extends Phaser.Scene {
     this.layout();
     this.scale.on('resize', this.layout, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.layout, this));
+
+    this.dispatchOnboarding({ type: 'sessionReady' });
   }
 
   private setupCameras(): void {
@@ -204,6 +205,7 @@ export class GameScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.input.pointer2?.isDown) return;
+      if (this.hud.isTutorialPromptOpen()) return;
       // HUD controls (objective, clues, zoom, Observe, scares) are HTML overlays.
       // Phaser only blocks pointer hits on HUD regions so taps do not move the ghost.
       if (this.hud.handlePointerDown(pointer.x, pointer.y)) return;
@@ -269,9 +271,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    const tutorialPromptOpen = this.hud.isTutorialPromptOpen();
     this.ghost.setKeyboardDirection(
-      Number(this.keys.right.isDown) - Number(this.keys.left.isDown),
-      Number(this.keys.down.isDown) - Number(this.keys.up.isDown),
+      tutorialPromptOpen
+        ? 0
+        : Number(this.keys.right.isDown) - Number(this.keys.left.isDown),
+      tutorialPromptOpen
+        ? 0
+        : Number(this.keys.down.isDown) - Number(this.keys.up.isDown),
     );
     this.ghost.update(delta);
     this.updateHauntingSession(delta);
@@ -284,10 +291,14 @@ export class GameScene extends Phaser.Scene {
     this.updateTutorialCoaching(delta);
 
     this.abilityKeys.forEach((key, index) => {
-      if (Phaser.Input.Keyboard.JustDown(key)) this.useAbility(STARTING_ABILITIES[index]);
+      if (!tutorialPromptOpen && Phaser.Input.Keyboard.JustDown(key)) {
+        this.useAbility(STARTING_ABILITIES[index]);
+      }
     });
 
-    if (Phaser.Input.Keyboard.JustDown(this.observeKey)) this.tryObserve();
+    if (!tutorialPromptOpen && Phaser.Input.Keyboard.JustDown(this.observeKey)) {
+      this.tryObserve();
+    }
   }
 
   private resolveActiveVisitor(): VisitorDefinition {
@@ -304,11 +315,16 @@ export class GameScene extends Phaser.Scene {
     this.hud.setVisitorPresentation(displayName, this.activeVisitor.cues.objective);
   }
 
-  private mapTutorialHighlight(target: TutorialHighlightTarget): DomTutorialHighlight {
-    if (target === 'observe' || target === 'clues' || target === 'scareGrid' || target === 'results' || target === 'nextVisit') {
-      return target;
-    }
-    return null;
+  private mapTutorialHighlight(
+    target: ReturnType<typeof highlightForOnboardingStep>,
+  ): 'observe' | 'clues' | 'scareGrid' | null {
+    return target;
+  }
+
+  private applyOnboardingHighlightForCurrentStep(): void {
+    const step = this.onboardingState.step;
+    if (this.onboardingState.mode !== 'guided' || !step) return;
+    this.hud.setTutorialHighlight(this.mapTutorialHighlight(highlightForOnboardingStep(step)));
   }
 
   private applyOnboardingPresentation(presentation: OnboardingPresentation): void {
@@ -337,6 +353,9 @@ export class GameScene extends Phaser.Scene {
       this.applyOnboardingPresentation(result.presentation);
     } else if (!this.onboardingState.presentationVisible) {
       this.hud.hideTutorialPresentation();
+      if (event.type === 'promptAcknowledged' && this.onboardingState.mode === 'guided') {
+        this.applyOnboardingHighlightForCurrentStep();
+      }
     }
   }
 
@@ -345,16 +364,12 @@ export class GameScene extends Phaser.Scene {
     this.hud.hideTutorialPresentation();
   }
 
+  private acknowledgeTutorial(): void {
+    this.dispatchOnboarding({ type: 'promptAcknowledged' });
+  }
+
   private updateTutorialCoaching(delta: number): void {
     const inObserveRange = this.inObservationRange();
-    const targetable = this.isTargetable();
-
-    if (targetable) {
-      if (inObserveRange && !this.wasInObserveRange) {
-        this.dispatchOnboarding({ type: 'enteredObserveRange' });
-      }
-      this.wasInObserveRange = inObserveRange;
-    }
 
     if (this.onboardingState.mode === 'guided') {
       if (this.onboardingState.presentationVisible) return;
@@ -426,6 +441,11 @@ export class GameScene extends Phaser.Scene {
         this.hauntingSession = announceVisitor(this.hauntingSession);
         this.hud.setVisitCue('🔔', this.activeVisitor.cues.arrivalAnnounce);
         this.hud.setStatus('Ding-dong! Get ready to sneak around…');
+        this.dispatchOnboarding({
+          type: 'guestArriving',
+          visitIndex: this.visitIndex,
+          visitorId: getVisitorIdForVisitIndex(this.visitIndex),
+        });
       }
       return;
     }
@@ -475,10 +495,6 @@ export class GameScene extends Phaser.Scene {
         visitIndex: this.visitIndex,
         visitorId: getVisitorIdForVisitIndex(this.visitIndex),
       });
-      if (this.onboardingState.step === 'moveNear' && this.inObservationRange()) {
-        this.dispatchOnboarding({ type: 'enteredObserveRange' });
-      }
-      this.wasInObserveRange = this.inObservationRange();
     }
 
     if (
@@ -547,13 +563,10 @@ export class GameScene extends Phaser.Scene {
     this.hud.showVisitResults(summary);
     this.hud.setGameplayLocked(true);
     this.hud.setStatus('Haunt wrapped — tap Next visit for more mischief!');
-    this.dispatchOnboarding({ type: 'resultsShown' });
   }
 
   private startNextVisit(): void {
     if (this.hauntingSession.phase !== 'results') return;
-
-    this.dispatchOnboarding({ type: 'nextVisitStarted' });
 
     this.visitIndex = advanceVisitIndex(this.visitIndex);
     this.activeVisitor = this.resolveActiveVisitor();
@@ -589,8 +602,6 @@ export class GameScene extends Phaser.Scene {
     this.cluePanelReviewedThisVisit = false;
     this.farFromVisitorMs = 0;
     this.lastResolvedExposure = null;
-    this.wasInObserveRange = false;
-    this.scareCastReportedInRange = false;
     this.hud.hideTutorialPresentation();
     this.updateHud();
     this.refreshObservationHud();
@@ -842,10 +853,6 @@ export class GameScene extends Phaser.Scene {
     }
 
     const inRange = this.inAbilityRange(ability);
-    if (inRange && this.onboardingState.step === 'stayInRange' && !this.scareCastReportedInRange) {
-      this.scareCastReportedInRange = true;
-      this.dispatchOnboarding({ type: 'scareCastInRange' });
-    }
     if (!this.scareCastWasInRange && inRange) {
       this.hud.setStatus(
         `${ability.name} casting… ${this.visitorDisplayName()} is in the spooky zone!`,
@@ -867,7 +874,6 @@ export class GameScene extends Phaser.Scene {
 
     if (tick.completedAbilityId !== null && tick.exposureRatio !== null) {
       this.scareCastWasInRange = false;
-      this.scareCastReportedInRange = false;
       const exposure = classifyExposureOutcome(tick.exposureRatio);
       this.lastResolvedExposure = exposure;
       this.dispatchOnboarding({ type: 'scareCastResolved', exposure });
@@ -921,12 +927,6 @@ export class GameScene extends Phaser.Scene {
 
     this.scareCastSession = start.session;
     this.scareCastWasInRange = inRange;
-    this.scareCastReportedInRange = false;
-    this.dispatchOnboarding({ type: 'scareCastStarted' });
-    if (this.onboardingState.step === 'stayInRange' && inRange) {
-      this.dispatchOnboarding({ type: 'scareCastInRange' });
-      this.scareCastReportedInRange = true;
-    }
 
     if (start.switchedFromAbilityId) {
       const previous = STARTING_ABILITIES.find((entry) => entry.id === start.switchedFromAbilityId);

@@ -720,6 +720,75 @@ canvas {
   transform: scale(0.97);
 }
 
+.dom-tutorial-prompt-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--hud-edge-inset-top) var(--hud-edge-inset-x) var(--hud-edge-inset-bottom);
+  background: #120a1ecc;
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.dom-tutorial-prompt-overlay[hidden] {
+  display: none;
+}
+
+.dom-tutorial-prompt-panel {
+  width: min(360px, 100%);
+  padding: 18px 18px 16px;
+  color: #fff7cf;
+  background: #241836f5;
+  border: 2px solid #c4a8ff;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  box-shadow: 0 8px 24px #00000066;
+}
+
+.dom-tutorial-prompt-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.dom-tutorial-prompt-text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dom-tutorial-prompt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.dom-tutorial-ok {
+  min-width: 88px;
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1030;
+  background: #ffe566;
+  border: 2px solid #ffd633;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.dom-tutorial-ok:active {
+  transform: scale(0.97);
+}
+
 .dom-tutorial-highlight {
   outline: 3px solid #ffe566;
   outline-offset: 3px;
@@ -737,6 +806,15 @@ canvas {
 
   .dom-tutorial-text {
     font-size: 11px;
+  }
+
+  .dom-tutorial-prompt-panel {
+    padding: 14px 14px 12px;
+    gap: 10px;
+  }
+
+  .dom-tutorial-prompt-text {
+    font-size: 14px;
   }
 
   .dom-tutorial-icon {

@@ -7,46 +7,35 @@ export interface OnboardingStepContent {
 }
 
 export const ONBOARDING_STEP_CONTENT: Record<OnboardingStepId, OnboardingStepContent> = {
-  moveNear: {
+  welcome: {
     icon: '👻',
-    highlight: 'visitor',
-    instruction: (name) => `Move your ghost closer to ${name}.`,
+    highlight: null,
+    instruction: () => 'Welcome to the Crooked Moon! You are a sneaky ghost — snoop, spook, and climb the scare charts.',
   },
-  observe: {
+  guestMotive: {
+    icon: '🎯',
+    highlight: null,
+    instruction: (name) => `A guest is coming! Spook ${name} silly and push their fear sky-high.`,
+  },
+  moveNearObserve: {
     icon: '👁',
     highlight: 'observe',
-    instruction: (name) => `Tap 👁 or press O to Observe ${name}.`,
+    instruction: (name) => `Sneak close to ${name}, then tap 👁 to Observe.`,
   },
-  reviewClue: {
+  reviewClues: {
     icon: '🧩',
     highlight: 'clues',
-    instruction: () => 'Open 🧩 to read the clue you found.',
+    instruction: () => 'Nice snoop! Open 🧩 and peek at what you learned.',
   },
-  chooseScare: {
+  chooseScareStayClose: {
     icon: '✨',
     highlight: 'scareGrid',
-    instruction: () => 'Pick a scare that might match the clue.',
+    instruction: (name) => `Pick a scare from your clues — stay close while it casts on ${name}!`,
   },
-  stayInRange: {
-    icon: '🎯',
-    highlight: 'scareGrid',
-    instruction: (name) => `Stay close while the scare casts to reach ${name}.`,
-  },
-  understandExposure: {
-    icon: '📡',
+  repeatLoop: {
+    icon: '🔁',
     highlight: null,
-    instruction: (name) =>
-      `Full range = strong scare. Partly close = weaker. Too far = no effect on ${name}.`,
-  },
-  readResults: {
-    icon: '📋',
-    highlight: 'results',
-    instruction: (name) => `See how you did with ${name}!`,
-  },
-  startNextVisit: {
-    icon: '🔄',
-    highlight: 'nextVisit',
-    instruction: () => 'Tap Next visit to meet the next guest.',
+    instruction: (name) => `Boo-yah! Observe, check clues, and scare ${name} again!`,
   },
 };
 
@@ -89,3 +78,7 @@ export const COACHING_HINT_CONTENT: Record<CoachingHintId, CoachingHintContent> 
     message: (name) => `${name} is almost leaving — one more snoop or scare?`,
   },
 };
+
+export function highlightForOnboardingStep(step: OnboardingStepId): TutorialHighlightTarget {
+  return ONBOARDING_STEP_CONTENT[step].highlight;
+}

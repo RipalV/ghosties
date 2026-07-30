@@ -54,7 +54,7 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 
 While observing, stay within range of the active visitor. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit. Starting Observe cancels an in-progress scare cast, and vice versa.
 
-On your **first Nora visit**, short in-game help walks you through move → observe → clues → scare → results → next visit. Tap **Skip help** any time; brief hints may still appear if you get stuck later.
+On your **first Nora visit**, six short OK/Skip prompts teach the haunt loop: welcome → guest arrives → move close & Observe → open clues → pick a scare & stay close → repeat. Tap **Skip help** any time; brief hints may still appear if you get stuck later.
 
 ## Visit flow
 
