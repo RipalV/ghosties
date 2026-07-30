@@ -1,4 +1,5 @@
 import type { ScareCategory } from '../abilities/ScareAbility';
+import { artPointToWorld, LOBBY_ART_SPOTS } from '../world/lobbyArtLayout';
 import type { VisitorId } from './visitorRegistry';
 
 /** Score-only bonus for a successful hotel-trick combo (does not affect fear). */
@@ -19,9 +20,19 @@ export interface LobbyPropDefinition {
   readonly visitorReactions?: Partial<Record<VisitorId, string>>;
 }
 
+const bellPos = artPointToWorld(LOBBY_ART_SPOTS.receptionBell.x, LOBBY_ART_SPOTS.receptionBell.y);
+const portraitPos = artPointToWorld(
+  LOBBY_ART_SPOTS.crookedPortrait.x,
+  LOBBY_ART_SPOTS.crookedPortrait.y,
+);
+const fireplacePos = artPointToWorld(
+  LOBBY_ART_SPOTS.draftyFireplace.x,
+  LOBBY_ART_SPOTS.draftyFireplace.y,
+);
+
 /**
- * Three hauntable lobby props. Positions align with existing furniture silhouettes:
- * bell on the reception desk, crooked portrait on the left wall, drafty hearth by the piano nook.
+ * Three hauntable lobby props. Positions track the painted Crooked Moon lobby
+ * art spots (reception bell / portrait / fireplace).
  *
  * Intended route pairings (see noraVisit / miloVisit POI tweaks):
  * - Nora: reception bell (Object Nudge) + crooked portrait (Whisper)
@@ -31,11 +42,10 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'reception-bell',
     displayName: 'Reception bell',
-    /** Matches the brass bell on the reception counter in LobbyEnvironment. */
-    position: { x: 574, y: 333 },
+    position: bellPos,
     compatibleCategory: 'object',
-    ghostActivationRadius: 140,
-    visitorReactionRadius: 120,
+    ghostActivationRadius: 150,
+    visitorReactionRadius: 130,
     visualKey: 'bell',
     defaultReactionCopy: 'Ding! The bell jingles all by itself!',
     visitorReactions: {
@@ -46,11 +56,10 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'crooked-portrait',
     displayName: 'Crooked portrait',
-    /** Floor hotspot under the left-wall painting (not a second floor frame). */
-    position: { x: 540, y: 390 },
+    position: portraitPos,
     compatibleCategory: 'whisper',
-    ghostActivationRadius: 130,
-    visitorReactionRadius: 120,
+    ghostActivationRadius: 140,
+    visitorReactionRadius: 130,
     visualKey: 'portrait',
     defaultReactionCopy: 'The portrait whispers back — eerie!',
     visitorReactions: {
@@ -61,11 +70,10 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'drafty-fireplace',
     displayName: 'Drafty fireplace',
-    /** Matches the fireplace prop beside the piano nook. */
-    position: { x: 1020, y: 420 },
+    position: fireplacePos,
     compatibleCategory: 'cold',
-    ghostActivationRadius: 140,
-    visitorReactionRadius: 125,
+    ghostActivationRadius: 150,
+    visitorReactionRadius: 135,
     visualKey: 'fireplace',
     defaultReactionCopy: 'A chilly draft whooshes from the hearth!',
     visitorReactions: {

@@ -43,7 +43,11 @@ export const CAMERA = {
   deadzoneHeightFraction: 0.3,
 } as const;
 
-export const GHOST_START = { x: 700, y: 520 } as const;
+/**
+ * Player ghost starts just inside the front doors — haunt sessions always begin
+ * from a portal (door). Visitors use door (Nora) or stairs (Milo).
+ */
+export const GHOST_START = { x: 520, y: 480 } as const;
 
 /** Nora's routine stays near the middle of the lobby so she is usually in view. */
 export const NORA_ROUTE = [

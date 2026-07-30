@@ -9,17 +9,22 @@ import {
   type VisitPacingResult,
 } from './visitTiming';
 import { SCARE_CAST_DURATION_MS } from '../scareCast/scareCastSession';
+import { artPointToWorld, LOBBY_ART_SPOTS } from '../world/lobbyArtLayout';
 import { MOVEMENT } from '../world/lobbyLayout';
 
 const FIRST_SESSION_VISIT_INDEX = 0;
 
-const ENTRANCE = { x: 740, y: 420 } as const;
+/** Nora always arrives through the front hotel doors. */
+const ENTRANCE = artPointToWorld(LOBBY_ART_SPOTS.doorLanding.x, LOBBY_ART_SPOTS.doorLanding.y);
+const SPAWN = artPointToWorld(LOBBY_ART_SPOTS.door.x, LOBBY_ART_SPOTS.door.y);
+const EXIT = artPointToWorld(LOBBY_ART_SPOTS.doorLanding.x - 20, LOBBY_ART_SPOTS.doorLanding.y + 30);
 
+/** Nora tours reception → portrait sofa → rug (door entry only). */
 const POI_COORDS = [
-  { x: 600, y: 360 },
-  { x: 540, y: 400 },
-  { x: 1180, y: 560 },
-  { x: 820, y: 600 },
+  artPointToWorld(LOBBY_ART_SPOTS.receptionBell.x + 50, LOBBY_ART_SPOTS.receptionBell.y + 60),
+  artPointToWorld(LOBBY_ART_SPOTS.crookedPortrait.x, LOBBY_ART_SPOTS.crookedPortrait.y + 50),
+  artPointToWorld(LOBBY_ART_SPOTS.rugCentre.x + 100, LOBBY_ART_SPOTS.rugCentre.y + 50),
+  artPointToWorld(LOBBY_ART_SPOTS.rugCentre.x - 120, LOBBY_ART_SPOTS.rugCentre.y + 90),
 ] as const;
 
 function noraPacing(comfortMarginMs: number): VisitPacingResult {
@@ -35,22 +40,19 @@ function noraPacing(comfortMarginMs: number): VisitPacingResult {
   });
 }
 
-/** Standard Nora visit — repeat rotations after the first session visit. */
 const VISIT_PACING = noraPacing(COMFORT_MARGIN_MS);
-
-/** First Nora visit of the session — longer pauses for guided onboarding. */
 const FIRST_VISIT_PACING = noraPacing(COMFORT_MARGIN_MS + FIRST_VISIT_COMFORT_BONUS_MS);
 
 function buildNoraVisitConfig(pacing: VisitPacingResult): VisitorVisitConfig {
   return {
     visitorName: 'Nora',
-    spawn: { x: 620, y: 380 },
+    spawn: SPAWN,
     entrance: ENTRANCE,
     pointsOfInterest: POI_COORDS.map((poi, index) => ({
       ...poi,
       pauseMs: pacing.poiPauseMs[index] ?? 12000,
     })),
-    exit: { x: 680, y: 480 },
+    exit: EXIT,
     successMinFearStage: 'possessed',
     locationReadyAnnounceMs: 1800,
     announceEnterDelayMs: 2200,
@@ -59,12 +61,9 @@ function buildNoraVisitConfig(pacing: VisitPacingResult): VisitorVisitConfig {
   };
 }
 
-/** Authored Nora visit route — separate from fear/clue content in nora.ts. */
 export const NORA_VISIT = buildNoraVisitConfig(VISIT_PACING);
-
 export const NORA_FIRST_VISIT = buildNoraVisitConfig(FIRST_VISIT_PACING);
 
-/** First session visit uses longer POI pauses; later Nora visits use standard pacing. */
 export function noraVisitForIndex(visitIndex: number): VisitorVisitConfig {
   return visitIndex === FIRST_SESSION_VISIT_INDEX ? NORA_FIRST_VISIT : NORA_VISIT;
 }

@@ -101,7 +101,8 @@ import {
   nearestZoomStepIndex,
   resolveCameraZoom,
 } from '../world/lobbyGeometry';
-import { CAMERA, GHOST_START, WORLD } from '../world/lobbyLayout';
+import { artPointToWorld, LOBBY_ART_KEY, LOBBY_ART_PATH, LOBBY_ART_SPOTS } from '../world/lobbyArtLayout';
+import { CAMERA, WORLD } from '../world/lobbyLayout';
 
 /** How far inside the viewport edge (in CSS pixels) the visitor must be to drop the marker. */
 const ON_SCREEN_INSET = 24;
@@ -155,15 +156,24 @@ export class GameScene extends Phaser.Scene {
     super('game');
   }
 
+  preload(): void {
+    this.load.image(LOBBY_ART_KEY, LOBBY_ART_PATH);
+  }
+
   create(): void {
     this.uiScale = 1 / this.scale.zoom;
     this.activeVisitor = this.resolveActiveVisitor();
 
     this.world = this.add.container(0, 0);
     const environment = new LobbyEnvironment(this);
-    this.ambience = new LobbyAmbience(this);
+    this.ambience = new LobbyAmbience(this, environment.usingPaintedLobby);
     this.hauntableProps = new HauntablePropPresentation(this);
-    this.ghost = new Ghost(this, GHOST_START.x, GHOST_START.y);
+    /** Player begins just inside the front doors (portal entry, not mid-lobby). */
+    const ghostStart = artPointToWorld(
+      LOBBY_ART_SPOTS.doorLanding.x,
+      LOBBY_ART_SPOTS.doorLanding.y,
+    );
+    this.ghost = new Ghost(this, ghostStart.x, ghostStart.y);
     this.npc = new Npc(this, this.activeVisitor.visit.spawn.x, this.activeVisitor.visit.spawn.y, this.activeVisitor);
     this.npc.setVisible(false);
     this.world.add([
