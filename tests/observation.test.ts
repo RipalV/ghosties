@@ -147,4 +147,49 @@ describe('discovery store and observation bonus', () => {
     expect(discovery.observationBonusGranted).toBe(false);
     expect(isObservationBonusEligible('whisper', primaryFear, discovery, clues)).toBe(false);
   });
+
+  it('prevents duplicate clue discovery in one session', () => {
+    let discovery = discoverClue(createDiscoveryState(), 'nora-whisper-mutter');
+    discovery = discoverClue(discovery, 'nora-whisper-mutter');
+    expect(discovery.discoveredClueIds).toEqual(['nora-whisper-mutter']);
+  });
+});
+
+describe('NORA_CONTENT authored slice', () => {
+  it('loads fear profile, clues, and observation tuning from data', () => {
+    expect(NORA_CONTENT.fearProfile.highFears).toContain('whisper');
+    expect(NORA_CONTENT.clues.length).toBeGreaterThanOrEqual(3);
+    expect(NORA_CONTENT.observation.range).toBeGreaterThan(0);
+    expect(NORA_CONTENT.observation.durationMs).toBeGreaterThan(0);
+  });
+
+  it('includes useful clues from at least two categories plus one personality detail', () => {
+    const useful = NORA_CONTENT.clues.filter((clue) => !clue.personalityOnly);
+    const categories = new Set(useful.map((clue) => clue.category));
+    const personalityCount = NORA_CONTENT.clues.filter((clue) => clue.personalityOnly).length;
+
+    expect(useful.length).toBeGreaterThanOrEqual(3);
+    expect(categories.size).toBeGreaterThanOrEqual(2);
+    expect(personalityCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not label the primary fear directly in clue text', () => {
+    for (const clue of NORA_CONTENT.clues) {
+      expect(clue.text.toLowerCase()).not.toMatch(/\bwhisper\b/);
+      expect(clue.text.toLowerCase()).not.toContain('primary fear');
+    }
+  });
+
+  it('reveals clues in authored order across multiple observe passes', () => {
+    let discovery = createDiscoveryState();
+    const expectedOrder = NORA_CONTENT.clues.map((clue) => clue.id);
+
+    for (const expectedId of expectedOrder) {
+      const { revealed } = advanceUntilReveal(startObservation(createObservationSession()), discovery);
+      expect(revealed).toEqual([expectedId]);
+      discovery = discoverClue(discovery, expectedId);
+    }
+
+    expect(findNextUndiscoveredClue(NORA_CONTENT.clues, discovery)).toBeNull();
+  });
 });

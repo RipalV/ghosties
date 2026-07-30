@@ -37,7 +37,7 @@ Discovered clues SHALL be recorded for the active haunting session and remain av
 - **AND** observation bonus eligibility for the new session is reset
 
 ### Requirement: Compact accessible clue review
-The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls, the Observe HUD button, or block primary movement input on landscape phones.
+The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls, the Observe HUD button, or block primary movement input on landscape phones. On short landscape viewports the panel SHALL use a max height with internal scrolling and a non-colour-only “more below” cue when content overflows.
 
 #### Scenario: Player reviews clues before a scare
 - **WHEN** the player opens the clue review UI after discovering clues
@@ -45,6 +45,11 @@ The game SHALL present discovered clues in a compact, mobile-friendly review pan
 - **AND** the scare action grid remains reachable
 - **AND** the Observe HUD button remains reachable
 - **AND** the play area remains usable for movement outside the panel
+
+#### Scenario: Overflowing clue list stays above the action bar
+- **WHEN** the clue list is longer than the panel max height on a short landscape viewport
+- **THEN** the panel scrolls internally rather than extending over the scare controls
+- **AND** a non-colour-only cue indicates more content is available below
 
 ### Requirement: Observation bonus for informed matching scare
 When the player uses a scare that matches the NPC's primary hidden fear after discovering at least one useful (non-personality-only) clue in the active haunting session, the game SHALL award a small observation score bonus at most once per active haunting session. The bonus SHALL NOT change fear gain, novelty, energy spend, or ineffective-scare penalties. Observation itself SHALL never deduct score or energy.

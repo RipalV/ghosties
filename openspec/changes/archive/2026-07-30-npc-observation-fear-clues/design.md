@@ -68,9 +68,9 @@ The vertical slice already has three scare abilities, Nora with a typed fear pro
 
 ### 7. Clue panel as a floating review surface
 
-- **Decision:** Add a compact clue list (toggle from a top-edge icon or objective-adjacent control) listing discovered clue accessible text plus category icon/shape. Undiscovered slots may show locked placeholders. Panel must not cover the scare grid, Observe button, or bottom-left move/card region; dismissible and transient enough for landscape phones.
+- **Decision:** Add a compact clue list toggled from the clues button beside the objective control. Discovered clues show accessible text plus a category icon/shape; undiscovered slots show locked placeholders (`???` + 🔒). The panel stacks **below** the top-left button row in the HTML HUD overlay so it never covers those controls (including in fullscreen). It must not cover the scare grid, Observe button, or bottom-left move/card region; dismissible and transient enough for landscape phones.
 - **Why:** Fits `mobile-gameplay-presentation` floating HUD language and accessibility requirements.
-- **Alternatives considered:** Full-screen journal — rejected for mobile play area; permanent side strip — rejected as shrinking the playfield.
+- **Alternatives considered:** Full-screen journal — rejected for mobile play area; permanent side strip — rejected as shrinking the playfield; Phaser-rendered panel — rejected after playtest showed canvas/HTML stacking misalignment in fullscreen.
 
 ### 8. README documentation is mandatory
 
@@ -79,13 +79,29 @@ The vertical slice already has three scare abilities, Nora with a typed fear pro
 
 ### 9. Testing and validation path
 
-- **Decision:** Vitest covers pure observation/clue/bonus rules including cancel-on-exit and session reset; Phaser wiring verified by playtest and Azure PR preview. `npm run check` and `npm run build` remain the gate.
-- **Why:** Aligns with existing FearEngine testing policy and project quality rules.
+- **Decision:** Vitest covers pure observation/clue/bonus rules, Nora content invariants, duplicate prevention, and session reset. Phaser wiring and HTML HUD hit targets are verified by local desktop playtest (keyboard, mouse, fullscreen) and Azure PR preview on a physical phone. `npm run check` and `npm run build` remain the gate.
+- **Why:** Aligns with existing FearEngine testing policy and project quality rules; avoids brittle Phaser/DOM unit tests for presentation while still locking domain behaviour.
+- **Manual checklist (6.2):** Observe in/out of range, progress meter, leave-range cancel, one clue per pass, clue panel toggle, observation bonus after useful clue + matching scare, ineffective scare unchanged, play-area tap moves ghost.
+- **Preview checklist (6.3):** Open a PR targeting `main`, use the Azure SWA preview URL from the PR comment, repeat HUD checks on a landscape phone.
+
+### 10. HTML overlay for edge HUD controls
+
+- **Decision:** Render objective, clues, clue review panel, Observe, scare actions, and zoom as HTML elements inside `#dom-hud` (positioned over the canvas content box with shared `--hud-pad-*` / `--hud-edge-inset-*` CSS vars). Phaser continues to draw value chips, status toasts, and the off-screen NPC indicator only.
+- **Why:** Device-pixel canvas scaling and fullscreen safe-area padding made Phaser hit-testing unreliable for top- and bottom-edge controls; HTML gives correct hit targets, pointer cursor, and flex layout for the clue panel below the top buttons.
+- **Alternatives considered:** Phaser manual hit rects — rejected after repeated fullscreen misalignment; enlarging hit pads — caused wider-than-visible click areas.
+
+### 11. Compact mobile HUD and scrollable clue panel
+
+- **Decision:** On narrow or short landscape viewports, scale down **all** interactive HUD controls (objective, clues, Observe, scare action buttons, ghost card, zoom, fullscreen) from the current ~60px / ~46px sizes toward a **≥44 CSS px** floor (typically 44–48px). Spacious desktop / large landscape keeps the larger defaults. Cap the clue panel’s max height so it stops above the bottom action cluster; list content scrolls inside the panel with a non-colour-only “more below” cue (fade, chevron, or similar) rather than clipping behind scare buttons.
+- **Why:** Playtest on short landscape phones showed 60px action buttons and an uncapped clue list covering the play area and hiding behind the ghost/scare cluster.
+- **Out of scope here:** Scare cast/wind-up progress meters (tracked in a separate change).
+- **Alternatives considered:** Allowing targets under 44px — rejected (accessibility); auto-closing the panel when it would overlap — rejected in favour of scroll-with-cue; relocating the panel away from top-left — deferred to keep toggle affordance next to the clues button.
 
 ## Risks / Trade-offs
 
 - **[Risk] Observation feels mandatory if the bonus or UX over-emphasises it** → Mitigation: small once-per-session bonus; scares remain fully usable without observing; copy frames observation as helpful, not required.
-- **[Risk] Clue panel or Observe button overlaps scare controls on narrow landscape phones** → Mitigation: anchored away from the action grid; layout checks at phone sizes; toggle rather than always-on panel.
+- **[Risk] Clue panel or Observe button overlaps scare controls on narrow landscape phones** → Mitigation: max-height + scroll with “more below” cue; compact ≥44px HUD on short/narrow landscape; layout checks at phone sizes; toggle rather than always-on panel.
+- **[Risk] Smaller HUD targets feel harder to tap** → Mitigation: never go below 44 CSS px; only shrink on constrained viewports; keep desktop sizes larger.
 - **[Risk] Clues spoil the answer or feel cryptic** → Mitigation: authored Nora sequence reviewed against 7+ readability; personality detail must not unfairly imply Object Nudge as the “right” answer.
 - **[Risk] Scene accumulates observation UI logic** → Mitigation: pure modules + content files; scene only coordinates.
 - **[Risk] Cancel-on-exit frustrates players who briefly step out of range** → Mitigation: generous observation range relative to scare ranges; pause/resume is explicitly out of scope for this change (revisit only via a later design decision).

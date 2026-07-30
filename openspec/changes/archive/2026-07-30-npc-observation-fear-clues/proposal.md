@@ -11,6 +11,8 @@ Scare selection currently feels like guessing: the player has little information
 - Keep observation progress, clue discovery state, and fear-matching / observation-bonus rules in pure domain modules.
 - Record discovered clues and observation-bonus eligibility for the active haunting session; reset them when the haunting session is restarted or a new scene session begins (this change does not add a separate restart/new-round UI flow).
 - Add a compact, mobile-friendly clue review panel that does not cover essential touch controls.
+- On narrow/short landscape viewports, shrink HUD controls (objective, clues, Observe, scare grid, ghost card, zoom, fullscreen) toward a ≥44 CSS px floor so they obstruct less of the play area; keep larger sizes on spacious desktop viewports.
+- Cap the clue panel height on short landscape viewports and allow scrolling with a clear “more below” cue so the panel never hides behind the bottom action cluster.
 - Implement a complete Nora vertical slice: one primary fear matching an existing scare, at least three useful clues from at least two categories, one fair personality detail, and family-friendly reactions.
 - Award a small observation bonus when a scare matching the hidden fear is used after relevant clues were discovered in the active session; observing itself costs no score or energy.
 - Preserve existing scare abilities, scoring, energy, diminishing returns, failed-scare penalties, resistance, and success outcomes.
@@ -26,7 +28,7 @@ Scare selection currently feels like guessing: the player has little information
 ### Modified Capabilities
 - `core-gameplay`: Extend the fear-discovery fantasy so observation and clues inform scare choice while existing fear profiles, outcomes, and child-safety constraints remain.
 - `playable-room`: Scene coordinates Observe, clue presentation, and the observation bonus alongside existing scare feedback without embedding Nora-specific content in the scene.
-- `mobile-gameplay-presentation`: Clue review UI and Observe HUD button fit the floating-chip HUD language and stay clear of essential scare and movement controls on landscape phones.
+- `mobile-gameplay-presentation`: Clue review UI and Observe HUD button fit the floating-chip HUD language and stay clear of essential scare and movement controls on landscape phones; HUD and clue-panel sizing respond to short/narrow landscape viewports without dropping below the ≥44 CSS px touch floor.
 
 ## Impact
 

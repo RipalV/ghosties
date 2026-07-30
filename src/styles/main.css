@@ -46,6 +46,26 @@ body {
   --hud-edge-inset-x: 12px;
   --hud-edge-inset-bottom: 12px;
   --hud-clue-panel-gap: 12px;
+  /* Spacious default sizes (desktop / large landscape). */
+  --hud-corner-size: 46px;
+  --hud-corner-font: 20px;
+  --hud-corner-radius: 12px;
+  --hud-action-size: 60px;
+  --hud-action-font: 24px;
+  --hud-action-radius: 14px;
+  --hud-action-gap: 10px;
+  --hud-observe-gap: 18px;
+  --hud-ghost-gap: 14px;
+  --hud-ghost-portrait: 52px;
+  --hud-ghost-font: 28px;
+  --hud-ghost-label-font: 12px;
+  --hud-zoom-size: 46px;
+  --hud-top-button-gap: 8px;
+  --hud-clue-panel-width: min(304px, calc(100vw - 2 * var(--hud-edge-inset-x) - 2 * var(--hud-pad-left)));
+  --hud-clue-panel-max-height: none;
+  --hud-clue-row-min-height: 34px;
+  --hud-clue-row-gap: 8px;
+  --hud-clue-panel-pad: 12px;
 
   position: relative;
   box-sizing: border-box;
@@ -110,18 +130,60 @@ body {
 
 .dom-hud-top-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--hud-top-button-gap);
   pointer-events: auto;
 }
 
 .dom-clue-panel {
-  width: min(304px, calc(100vw - 2 * var(--hud-edge-inset-x) - 2 * var(--hud-pad-left)));
-  padding: 12px;
+  width: var(--hud-clue-panel-width);
+  padding: var(--hud-clue-panel-pad);
   color: #fff7cf;
   background: #241836f0;
   border: 2px solid #8a78c0;
   border-radius: 14px;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.dom-clue-panel-scroll {
+  position: relative;
+  min-height: 0;
+  max-height: var(--hud-clue-panel-max-height);
+}
+
+.dom-clue-panel-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--hud-clue-row-gap);
+  max-height: var(--hud-clue-panel-max-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dom-clue-panel-more-cue {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 8px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #fff7cf;
+  background: linear-gradient(to bottom, transparent, #241836f0 45%, #241836f0);
+  pointer-events: none;
+}
+
+.dom-clue-panel-scroll[data-overflow='true']:not([data-scrolled-end='true']) .dom-clue-panel-more-cue {
+  display: block;
 }
 
 .dom-clue-panel[hidden] {
@@ -134,29 +196,21 @@ body {
   font-weight: 700;
   line-height: 1.2;
   color: #fff7cf;
-}
-
-.dom-clue-panel-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex: 0 0 auto;
 }
 
 .dom-clue-panel-row {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  min-height: 34px;
+  min-height: var(--hud-clue-row-min-height);
 }
 
 .dom-clue-panel-glyph {
   flex: 0 0 auto;
   width: 20px;
   font-size: 16px;
-  line-height: 34px;
+  line-height: var(--hud-clue-row-min-height);
   text-align: center;
 }
 
@@ -177,7 +231,7 @@ body {
   right: var(--hud-edge-inset-x);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--hud-top-button-gap);
   transform: translateY(-50%);
   pointer-events: auto;
 }
@@ -195,14 +249,14 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 14px;
+  margin-right: var(--hud-ghost-gap);
   pointer-events: auto;
 }
 
 .dom-hud-ghost-label {
   margin-bottom: 4px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: var(--hud-ghost-label-font);
   font-weight: 700;
   line-height: 1.2;
   color: #fff7cf;
@@ -212,11 +266,11 @@ body {
 }
 
 .dom-hud-ghost-portrait {
-  width: 52px;
-  height: 52px;
+  width: var(--hud-ghost-portrait);
+  height: var(--hud-ghost-portrait);
   display: grid;
   place-items: center;
-  font-size: 28px;
+  font-size: var(--hud-ghost-font);
   line-height: 1;
   background: #2d1f4ad9;
   border: 3px solid #8a78c0;
@@ -225,30 +279,30 @@ body {
 }
 
 .dom-hud-observe-wrap {
-  margin-right: 18px;
+  margin-right: var(--hud-observe-gap);
 }
 
 .dom-hud-action-grid {
   display: flex;
-  gap: 10px;
+  gap: var(--hud-action-gap);
 }
 
 .dom-hud-action-button {
   position: relative;
-  width: 60px;
-  height: 60px;
-  min-width: 60px;
-  min-height: 60px;
+  width: var(--hud-action-size);
+  height: var(--hud-action-size);
+  min-width: var(--hud-action-size);
+  min-height: var(--hud-action-size);
   margin: 0;
   padding: 0;
   display: grid;
   place-items: center;
-  font-size: 24px;
+  font-size: var(--hud-action-font);
   line-height: 1;
   color: #fff7cf;
   background: #241836d9;
   border: 2px solid #8a78c0;
-  border-radius: 14px;
+  border-radius: var(--hud-action-radius);
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
@@ -359,20 +413,20 @@ body {
 
 .dom-hud-button {
   position: relative;
-  width: 46px;
-  height: 46px;
-  min-width: 46px;
-  min-height: 46px;
+  width: var(--hud-corner-size);
+  height: var(--hud-corner-size);
+  min-width: var(--hud-corner-size);
+  min-height: var(--hud-corner-size);
   margin: 0;
   padding: 0;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: var(--hud-corner-font);
   line-height: 1;
   color: #fff7cf;
   background: #241836d9;
   border: 2px solid #8a78c0;
-  border-radius: 12px;
+  border-radius: var(--hud-corner-radius);
   cursor: pointer;
   pointer-events: auto;
   touch-action: manipulation;
@@ -427,16 +481,18 @@ canvas {
   top: calc(var(--hud-pad-top) + 8px);
   right: calc(var(--hud-pad-right) + 8px);
   z-index: 20;
-  width: 46px;
-  height: 46px;
+  width: var(--hud-zoom-size);
+  height: var(--hud-zoom-size);
+  min-width: var(--hud-zoom-size);
+  min-height: var(--hud-zoom-size);
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: var(--hud-corner-font);
   line-height: 1;
   color: #fff7cf;
   background: #241836d9;
   border: 2px solid #8a78c0;
-  border-radius: 12px;
+  border-radius: var(--hud-corner-radius);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -493,4 +549,45 @@ canvas {
 
 @media (orientation: portrait), (max-width: 700px) and (max-height: 500px) {
   /* Shown via JS as well; CSS media is a fast path for common phones. */
+}
+
+/*
+ * Short or narrow landscape: compact HUD (≥44 CSS px touch floor) and capped clue panel
+ * so the list scrolls above the bottom action cluster instead of hiding behind it.
+ */
+@media (orientation: landscape) and (max-height: 520px), (orientation: landscape) and (max-width: 740px) {
+  #app {
+    --hud-corner-size: 44px;
+    --hud-corner-font: 18px;
+    --hud-corner-radius: 10px;
+    --hud-action-size: 44px;
+    --hud-action-font: 20px;
+    --hud-action-radius: 10px;
+    --hud-action-gap: 6px;
+    --hud-observe-gap: 8px;
+    --hud-ghost-gap: 8px;
+    --hud-ghost-portrait: 44px;
+    --hud-ghost-font: 24px;
+    --hud-ghost-label-font: 11px;
+    --hud-zoom-size: 44px;
+    --hud-top-button-gap: 6px;
+    --hud-clue-panel-gap: 8px;
+    --hud-clue-row-min-height: 30px;
+    --hud-clue-row-gap: 6px;
+    --hud-clue-panel-pad: 10px;
+    --hud-clue-panel-width: min(260px, calc(100vw - 2 * var(--hud-edge-inset-x) - 2 * var(--hud-pad-left)));
+    --hud-clue-panel-max-height: calc(
+      100dvh - var(--hud-pad-top) - var(--hud-pad-bottom) - var(--hud-edge-inset-top) -
+        var(--hud-edge-inset-bottom) - var(--hud-corner-size) - var(--hud-clue-panel-gap) - 104px
+    );
+  }
+
+  .dom-clue-panel-title {
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  .dom-clue-panel-text {
+    font-size: 12px;
+  }
 }
