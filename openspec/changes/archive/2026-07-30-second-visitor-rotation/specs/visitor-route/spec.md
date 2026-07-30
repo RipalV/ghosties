@@ -1,23 +1,4 @@
-# visitor-route Specification
-
-## Purpose
-Authored visitor presence, routes, and pacing for haunting visits — separate from fear stages and scene hard-coding.
-
-## Requirements
-### Requirement: Visitor presence separate from fear
-Visitor presence SHALL use a distinct typed state: offsite, entering, visiting, departing, and departed. Emotional fear stages SHALL remain the existing calm, curious, uneasy, frightened, runaway, swoon, and possessed progression. Presence and fear SHALL NOT be combined into one enum.
-
-#### Scenario: Visiting while calm
-- **GIVEN** Nora has just become targetable
-- **WHEN** her fear is still at calm
-- **THEN** her presence is visiting
-- **AND** her fear stage is calm
-
-#### Scenario: Departing while haunted
-- **GIVEN** Nora reached the success condition
-- **WHEN** departure begins
-- **THEN** her presence is departing
-- **AND** her fear stage remains the successful haunted stage (for example possessed)
+## MODIFIED Requirements
 
 ### Requirement: Authored Nora visit route
 The vertical slice SHALL include authored visit routes for each registered visitor (Nora and one additional visitor). Each visit SHALL begin outside the playable lobby, enter through a configured entrance (targetable point), visit at least three fixed-coordinate points of interest with pauses, and end at a configured exit. Route data SHALL use fixed world coordinates, SHALL be stored outside `GameScene`, and SHALL remain separate from that visitor’s fear and clue definitions. Routing SHALL be deterministic with no randomness required. The second visitor’s route and pause lengths SHALL be noticeably different from Nora’s.

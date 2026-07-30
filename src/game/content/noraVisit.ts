@@ -13,7 +13,7 @@ const POI_COORDS = [
 
 /**
  * Pause lengths derived from visit pacing maths:
- * 3 × 8000 ms Observe + 5 × 1500 ms scare casts + reposition buffers + travel ≈ 63 s active haunting.
+ * 3 × 8000 ms Observe + 5 × 2200 ms scare casts + reposition buffers + travel.
  */
 const VISIT_PACING = defaultNoraVisitPacing(
   ENTRANCE,

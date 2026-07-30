@@ -15,7 +15,7 @@ export function observationBonusAllowed(exposureRatio: number): boolean {
   return exposureRatio >= OBSERVATION_BONUS_MIN_EXPOSURE;
 }
 
-/** Scare fear/score/energy apply only when Nora had some exposure during the cast. */
+/** Scare fear/score/energy apply only when the visitor had some exposure during the cast. */
 export function shouldApplyScareOutcome(exposureRatio: number): boolean {
   return exposureRatio > 0;
 }
@@ -25,7 +25,11 @@ export function shouldApplyScareOutcome(exposureRatio: number): boolean {
  * (via `shouldApplyScareOutcome`) never need the miss branch; it remains for
  * pure helper completeness and unit tests.
  */
-export function scaleScareResult(result: ScareResult, exposureRatio: number): ScareResult {
+export function scaleScareResult(
+  result: ScareResult,
+  exposureRatio: number,
+  targetName = 'them',
+): ScareResult {
   const kind = classifyExposureOutcome(exposureRatio);
 
   if (kind === 'miss') {
@@ -33,7 +37,7 @@ export function scaleScareResult(result: ScareResult, exposureRatio: number): Sc
       ...result,
       fearGained: 0,
       scoreDelta: 0,
-      reaction: 'Too far — the scare never reached Nora.',
+      reaction: `Too far — the scare never reached ${targetName}.`,
     };
   }
 
@@ -47,11 +51,11 @@ export function scaleScareResult(result: ScareResult, exposureRatio: number): Sc
 
   let reaction = result.reaction;
   if (result.strength === 'none') {
-    reaction = `Only partly reached her — ${result.reaction}`;
+    reaction = `Only partly reached them — ${result.reaction}`;
   } else if (scaledFear > 0) {
     reaction = `Partly caught! ${result.reaction}`;
   } else {
-    reaction = 'Only partly caught — Nora barely noticed.';
+    reaction = `Only partly caught — ${targetName} barely noticed.`;
   }
 
   return {

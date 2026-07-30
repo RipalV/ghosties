@@ -174,14 +174,16 @@ export function tickVisitorRoute(input: RouteTickInput): RouteTickResult {
   const dist = worldDistance(npcX, npcY, poi.x, poi.y);
   if (dist < threshold) {
     const nextIndex = state.poiIndex + 1;
+    const finishedRoute = nextIndex >= pois.length;
     return {
       state: {
         ...state,
         presence: 'visiting',
         leg: 'poi',
         poiIndex: nextIndex,
-        pauseRemainingMs: poi.pauseMs,
-        routeComplete: nextIndex >= pois.length,
+        // No dwell at the final stop — leave as soon as the tour completes.
+        pauseRemainingMs: finishedRoute ? 0 : poi.pauseMs,
+        routeComplete: finishedRoute,
       },
       targetX: poi.x,
       targetY: poi.y,

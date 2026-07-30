@@ -27,7 +27,7 @@ Observation SHALL reveal clues progressively rather than all at once. The game S
 - **THEN** it does not directly name Nora's primary fear as a completed answer label
 
 ### Requirement: Active-haunting-session discovery state
-Discovered clues SHALL be recorded for the active haunting visit and remain available for review through that visit’s results. Discovery state and observation-bonus eligibility SHALL reset when the player starts the next visit (Next visit) or when Nora becomes targetable for a new visit after reset. The Next visit control provides the player-facing restart flow for a new haunting visit without reloading the browser.
+Discovered clues SHALL be recorded for the active haunting visit and remain available for review through that visit’s results. Discovery state and observation-bonus eligibility SHALL reset when the player starts the next visit (Next visit) or when the next visitor becomes targetable after reset. The Next visit control provides the player-facing restart flow for a new haunting visit without reloading the browser. Clues discovered for one visitor SHALL NOT appear during another visitor’s visit.
 
 #### Scenario: Clues persist for the active session
 - **GIVEN** the player has discovered one or more clues
@@ -36,7 +36,7 @@ Discovered clues SHALL be recorded for the active haunting visit and remain avai
 
 #### Scenario: Session restart clears discoveries
 - **GIVEN** clues were discovered in the previous visit
-- **WHEN** the player chooses Next visit and a new visit begins, or Nora becomes targetable after reset
+- **WHEN** the player chooses Next visit and a new visit begins, or the next visitor becomes targetable after reset
 - **THEN** discovery state is reset
 - **AND** observation bonus eligibility for the new visit is reset
 
@@ -44,6 +44,11 @@ Discovered clues SHALL be recorded for the active haunting visit and remain avai
 - **GIVEN** clues were discovered before Nora departed
 - **WHEN** results are showing
 - **THEN** those clues remain listed or summarised for the visit
+
+#### Scenario: Nora clues do not appear for the second visitor
+- **GIVEN** Nora clues were discovered in the previous visit
+- **WHEN** the second visitor’s visit is active
+- **THEN** the clue panel does not list Nora’s clues
 
 ### Requirement: Compact accessible clue review
 The game SHALL present discovered clues in a compact, mobile-friendly review panel with accessible text for every clue, including clues that also use animation, symbols, or body language. The panel SHALL NOT cover essential scare controls, the Observe HUD button, or block primary movement input on landscape phones. On short landscape viewports the panel SHALL use a max height with internal scrolling and a non-colour-only “more below” cue when content overflows.

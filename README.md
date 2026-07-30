@@ -56,13 +56,15 @@ While observing, stay within range of Nora. Each Observe unlocks **one** new clu
 
 ## Visit flow
 
-Each play session is a **haunting visit** in the Crooked Moon Hotel lobby:
+Each play session is a **haunting visit** in the Crooked Moon Hotel lobby. **Nora** and **Milo** take turns — Nora first, then Milo, then back again — so each guest needs its own investigation:
 
-1. **Location ready** — your ghost is already home. Nora is off-site until a visitor is announced.
-2. **Visitor arrival** — a short cue plays, then Nora walks in. Observe and scares stay locked until she reaches her entry point.
-3. **Active haunting** — Nora tours several lobby spots with long pauses (~12 s each) so you have time for **three** Observe passes and **five** scare casts. She keeps walking between stops (and during casts).
-4. **Departure** — if Nora reaches **goofily possessed** fear before her route ends, she leaves early (**epic haunt**). If she finishes the tour first, she slips away (**close call**). Leaving cancels any in-progress Observe or scare cast without spending energy or applying outcomes.
-5. **Results** — a mobile-friendly overlay shows the outcome in playful copy, haunt points, spy bonus, secret recap, and a ghost tip. Tap **Next visit** (≥44 CSS px) to reset fear, score, energy, clues, and novelty for another try without reloading. Your ghost and the hotel stay put.
+1. **Location ready** — your ghost is already home. The next visitor is off-site until announced.
+2. **Visitor arrival** — a short cue plays, then the guest walks in. Observe and scares stay locked until they reach their entry point.
+3. **Active haunting** — the visitor tours several lobby spots with pauses so you have time for **three** Observe passes and **five** scare casts. They keep walking between stops (and during casts).
+4. **Departure** — if the visitor reaches **goofily possessed** fear before their route ends, they leave early (**epic haunt**). If they finish the tour first, they slip away (**close call**). Leaving cancels any in-progress Observe or scare cast without spending energy or applying outcomes.
+5. **Results** — a mobile-friendly overlay shows the outcome in playful copy, haunt points, spy bonus, secret recap, and a ghost tip. Tap **Next visit** (≥44 CSS px) to meet the **next visitor** in the rotation with fresh fear, score, energy, clues, and novelty — without reloading. Your ghost and the hotel stay put.
+
+Nora and Milo fear different things — watch each guest, gather **their** clues, and match your scares to what you learn rather than repeating one solution.
 
 ## Mobile play
 

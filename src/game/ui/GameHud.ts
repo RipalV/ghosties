@@ -15,7 +15,6 @@ export interface HudSnapshot {
 }
 
 export interface GameHudOptions {
-  readonly objective: string;
   readonly onZoomIn: () => void;
   readonly onZoomOut: () => void;
   readonly onObserve: () => void;
@@ -46,11 +45,13 @@ export class GameHud {
   private hasDiscoveredClues = false;
   private actionCount = 0;
   private actionEnergyCosts: number[] = [];
+  private visitorName = '';
+  private objectiveText = '';
 
   constructor(
     scene: Phaser.Scene,
     private readonly uiScale: number,
-    private readonly options: GameHudOptions,
+    options: GameHudOptions,
   ) {
     this.root = scene.add.container(0, 0).setDepth(1000);
 
@@ -59,7 +60,7 @@ export class GameHud {
     this.fearChip = new HudChip(scene, '😮', 'CALM 0', uiScale);
 
     this.toast = new StatusToast(scene, uiScale);
-    this.npcIndicator = new OffscreenIndicator(scene, 'Nora', uiScale);
+    this.npcIndicator = new OffscreenIndicator(scene, '', uiScale);
 
     const parent = scene.game.canvas.parentElement;
     if (!parent) throw new Error('Missing game parent for DOM HUD controls.');
@@ -68,7 +69,7 @@ export class GameHud {
     this.domHud = new DomHudControls(parent, {
       onObjective: () => {
         this.domHud.setObjectiveNotification(false);
-        this.setStatus(this.options.objective);
+        this.setStatus(this.objectiveText);
       },
       onToggleClues: options.onToggleClues,
       onZoomIn: options.onZoomIn,
@@ -117,6 +118,13 @@ export class GameHud {
 
   blocksPointer(x: number, y: number): boolean {
     return this.blockedRegions.some((region) => region.contains(x, y));
+  }
+
+  setVisitorPresentation(visitorName: string, objective: string): void {
+    this.visitorName = visitorName;
+    this.objectiveText = objective;
+    this.domHud.setObserveLabel(visitorName);
+    this.domHud.setObjectiveText(objective);
   }
 
   setStatus(message: string): void {
@@ -198,7 +206,7 @@ export class GameHud {
     this.npcIndicator.pointAt(
       { x: this.viewWidth / 2, y: this.viewHeight / 2 },
       target,
-      `Nora · ${Math.round(worldDistance / 10)}m`,
+      ` ${this.visitorName} · ${Math.round(worldDistance / 10)}m`,
       {
         left: inset + 40 * this.uiScale,
         right: this.viewWidth - inset - 40 * this.uiScale - zoomColumn,

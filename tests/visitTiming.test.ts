@@ -30,14 +30,14 @@ describe('visit pacing maths', () => {
       NORA_CONTENT.observation.durationMs,
       SCARE_CAST_DURATION_MS,
     );
-    expect(actionMs).toBe(3 * 8000 + 5 * 1500);
-    expect(actionMs).toBe(31_500);
+    expect(actionMs).toBe(3 * 8000 + 5 * SCARE_CAST_DURATION_MS);
+    expect(actionMs).toBe(3 * 8000 + 5 * 2200);
   });
 
   it('allocates enough pause time for the Nora visit route', () => {
     const pacing = defaultNoraVisitPacing(ENTRANCE, POIS, NORA_CONTENT.observation.durationMs);
 
-    expect(pacing.sequentialActionMs).toBe(31_500);
+    expect(pacing.sequentialActionMs).toBe(3 * 8000 + 5 * SCARE_CAST_DURATION_MS);
     expect(pacing.transitionBufferMs).toBe((TARGET_OBSERVATIONS + TARGET_SCARES - 1) * REPOSITION_BUFFER_MS);
     expect(pacing.travelMs).toBeGreaterThan(12_000);
     expect(pacing.totalPauseMs).toBeGreaterThan(50_000);
