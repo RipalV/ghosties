@@ -16,6 +16,7 @@ export interface CoachingInput {
   readonly repeatedIneffectiveCount: number;
   readonly routeProgressRatio: number;
   readonly farFromVisitorMs: number;
+  readonly nearUnusedProp: boolean;
   readonly shownHints: ReadonlySet<CoachingHintId>;
 }
 
@@ -70,6 +71,10 @@ export function selectCoachingHint(input: CoachingInput): CoachingPresentation {
 
   if (input.lastResolvedExposure === 'miss') {
     return tryHint('zeroExposure') ?? empty;
+  }
+
+  if (input.nearUnusedProp) {
+    return tryHint('propComboAvailable') ?? empty;
   }
 
   if (input.repeatedIneffectiveCount >= REPEATED_INEFFECTIVE_THRESHOLD) {

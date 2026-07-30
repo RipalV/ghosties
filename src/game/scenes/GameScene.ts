@@ -1,10 +1,8 @@
 import Phaser from 'phaser';
 import { STARTING_ABILITIES, type ScareAbility } from '../abilities/ScareAbility';
-import {
-  getVisitorDefinition,
-  type VisitorDefinition,
-} from '../content/visitorRegistry';
+import { getVisitorDefinition, isVisitorId, type VisitorDefinition } from '../content/visitorRegistry';
 import { noraVisitForIndex } from '../content/noraVisit';
+import { getLobbyPropById } from '../content/lobbyProps';
 import { Ghost } from '../entities/Ghost';
 import { Npc, DEPARTURE_SPEED_MULTIPLIER, NPC_MAX_FEAR } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
@@ -86,6 +84,18 @@ import type { OnboardingEvent, OnboardingPresentation } from '../onboarding/type
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
+import { HauntablePropPresentation } from '../visuals/HauntablePropPresentation';
+import {
+  beginPropCastLink,
+  clearLinkedProp,
+  evaluatePropCombo,
+  findNearbyUnusedProp,
+  hotelTrickStatusMessage,
+  LOBBY_PROPS,
+  resetPropVisitState,
+  type PropComboEvaluation,
+  type PropVisitState,
+} from '../props';
 import {
   clampZoomStepIndex,
   nearestZoomStepIndex,
@@ -101,6 +111,7 @@ export class GameScene extends Phaser.Scene {
   private ghost!: Ghost;
   private npc!: Npc;
   private ambience!: LobbyAmbience;
+  private hauntableProps!: HauntablePropPresentation;
   private hud!: GameHud;
   /** Holds the fixed-coordinate lobby world that the camera frames. */
   private world!: Phaser.GameObjects.Container;
@@ -122,6 +133,7 @@ export class GameScene extends Phaser.Scene {
   private departurePending = false;
   private observationSession: ObservationSession = createObservationSession();
   private scareCastSession: ScareCastSession = createScareCastSession();
+  private propVisitState: PropVisitState = resetPropVisitState();
   /** Last in-range sample while a scare cast is active (for leave-range status). */
   private scareCastWasInRange = false;
   /** Avoids per-frame DOM writes while a scare cast ring is filling. */
@@ -150,10 +162,17 @@ export class GameScene extends Phaser.Scene {
     this.world = this.add.container(0, 0);
     const environment = new LobbyEnvironment(this);
     this.ambience = new LobbyAmbience(this);
+    this.hauntableProps = new HauntablePropPresentation(this);
     this.ghost = new Ghost(this, GHOST_START.x, GHOST_START.y);
     this.npc = new Npc(this, this.activeVisitor.visit.spawn.x, this.activeVisitor.visit.spawn.y, this.activeVisitor);
     this.npc.setVisible(false);
-    this.world.add([environment.container, this.ambience.container, this.npc, this.ghost]);
+    this.world.add([
+      environment.container,
+      this.ambience.container,
+      this.hauntableProps.container,
+      this.npc,
+      this.ghost,
+    ]);
 
     this.discoveryState = resetDiscoveryState();
     this.observationSession = createObservationSession();
@@ -181,7 +200,10 @@ export class GameScene extends Phaser.Scene {
 
     this.layout();
     this.scale.on('resize', this.layout, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.scale.off('resize', this.layout, this));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off('resize', this.layout, this);
+      this.hauntableProps.destroy();
+    });
 
     this.dispatchOnboarding({ type: 'sessionReady' });
   }
@@ -294,6 +316,7 @@ export class GameScene extends Phaser.Scene {
     this.updateNpcIndicator();
     this.updateObservation(simDelta);
     this.updateScareCast(simDelta);
+    this.hauntableProps.update(this.ghost, this.propVisitState, this.isTargetable());
     this.updateTutorialCoaching(simDelta);
 
     this.abilityKeys.forEach((key, index) => {
@@ -419,6 +442,12 @@ export class GameScene extends Phaser.Scene {
         this.visitorRouteState.routeComplete,
       ),
       farFromVisitorMs: this.farFromVisitorMs,
+      nearUnusedProp: findNearbyUnusedProp(
+        LOBBY_PROPS,
+        this.propVisitState,
+        { x: this.ghost.x, y: this.ghost.y },
+        this.isTargetable(),
+      ) !== null,
       shownHints: this.coachingShownHints,
     });
 
@@ -552,6 +581,8 @@ export class GameScene extends Phaser.Scene {
       this.scareCastWasInRange = false;
       this.refreshScareCastHud();
     }
+    this.propVisitState = clearLinkedProp(this.propVisitState);
+    this.hauntableProps.clearCasting();
     this.npc.setScareCastReaction(false);
     this.hud.setStatus(statusMessage);
   }
@@ -586,6 +617,7 @@ export class GameScene extends Phaser.Scene {
     this.discoveryState = reset.runtime.discoveryState;
     this.observationSession = reset.runtime.observationSession;
     this.scareCastSession = reset.runtime.scareCastSession;
+    this.propVisitState = reset.runtime.propVisitState;
     this.observationBonusTotal = reset.runtime.observationBonusTotal;
     this.ineffectiveScareCount = reset.runtime.ineffectiveScareCount;
     this.repeatedScareCount = reset.runtime.repeatedScareCount;
@@ -611,6 +643,7 @@ export class GameScene extends Phaser.Scene {
     this.cluePanelReviewedThisVisit = false;
     this.farFromVisitorMs = 0;
     this.lastResolvedExposure = null;
+    this.hauntableProps.clearCasting();
     this.hud.hideTutorialPresentation();
     this.updateHud();
     this.refreshObservationHud();
@@ -663,6 +696,12 @@ export class GameScene extends Phaser.Scene {
             this.visitorRouteState.routeComplete,
           ),
           farFromVisitorMs: this.farFromVisitorMs,
+          nearUnusedProp: findNearbyUnusedProp(
+            LOBBY_PROPS,
+            this.propVisitState,
+            { x: this.ghost.x, y: this.ghost.y },
+            this.isTargetable(),
+          ) !== null,
           shownHints: this.coachingShownHints,
         });
         if (coaching.message && coaching.hintId) {
@@ -843,6 +882,8 @@ export class GameScene extends Phaser.Scene {
     ) {
       this.scareCastSession = cancelScareCast(this.scareCastSession);
       this.scareCastWasInRange = false;
+      this.propVisitState = clearLinkedProp(this.propVisitState);
+      this.hauntableProps.clearCasting();
       this.refreshScareCastHud();
       return;
     }
@@ -888,8 +929,21 @@ export class GameScene extends Phaser.Scene {
       this.dispatchOnboarding({ type: 'scareCastResolved', exposure });
       const completed = STARTING_ABILITIES.find((entry) => entry.id === tick.completedAbilityId);
       if (completed) {
+        const visitorId = isVisitorId(this.activeVisitor.id) ? this.activeVisitor.id : 'nora';
+        const combo = evaluatePropCombo(
+          this.propVisitState,
+          LOBBY_PROPS,
+          this.propVisitState.linkedPropId,
+          completed.category,
+          tick.exposureRatio,
+          { x: this.npc.x, y: this.npc.y },
+          visitorId,
+        );
+        this.propVisitState = combo.state;
+        this.hauntableProps.clearCasting();
+
         if (shouldApplyScareOutcome(tick.exposureRatio)) {
-          this.resolveScare(completed, tick.exposureRatio);
+          this.resolveScare(completed, tick.exposureRatio, combo.evaluation);
         } else {
           this.hud.setStatus(
             `${ability.name} fizzled — ${this.visitorDisplayName()} was never in range.`,
@@ -936,6 +990,14 @@ export class GameScene extends Phaser.Scene {
 
     this.scareCastSession = start.session;
     this.scareCastWasInRange = inRange;
+    this.propVisitState = beginPropCastLink(
+      this.propVisitState,
+      LOBBY_PROPS,
+      { x: this.ghost.x, y: this.ghost.y },
+      ability.category,
+      this.isTargetable(),
+    );
+    this.hauntableProps.setLinkedProp(this.propVisitState.linkedPropId);
 
     if (start.switchedFromAbilityId) {
       const previous = STARTING_ABILITIES.find((entry) => entry.id === start.switchedFromAbilityId);
@@ -951,7 +1013,16 @@ export class GameScene extends Phaser.Scene {
     this.refreshScareCastHud(inRange);
   }
 
-  private resolveScare(ability: ScareAbility, exposureRatio: number): void {
+  private resolveScare(
+    ability: ScareAbility,
+    exposureRatio: number,
+    propCombo: PropComboEvaluation = {
+      scoreBonus: 0,
+      propId: null,
+      reactionCopy: null,
+      awarded: false,
+    },
+  ): void {
     this.energy -= ability.energyCost;
     const raw = resolveScare(this.npc.fearProfile, this.npc.scareHistory, ability.category);
     this.npc.scareHistory.usesByCategory[ability.category] =
@@ -983,7 +1054,14 @@ export class GameScene extends Phaser.Scene {
 
     const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
     this.npc.syncFear(fear, getFearStage(fear));
-    this.score = Math.max(0, this.score + result.scoreDelta + bonus.bonus);
+    this.score = Math.max(0, this.score + result.scoreDelta + bonus.bonus + propCombo.scoreBonus);
+
+    if (propCombo.awarded && propCombo.propId && propCombo.reactionCopy) {
+      const prop = getLobbyPropById(propCombo.propId);
+      if (prop) {
+        this.hauntableProps.playResolveReaction(prop, propCombo.reactionCopy);
+      }
+    }
 
     const ineffective = raw.strength === 'none';
     const failed = ineffective;
@@ -1012,7 +1090,9 @@ export class GameScene extends Phaser.Scene {
       ? ` That scare is getting stale (${Math.round(raw.noveltyMultiplier * 100)}% punch).`
       : '';
     const bonusNote = bonus.bonus > 0 ? ` Sneaky spy bonus +${bonus.bonus}!` : '';
-    this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${repetitionNote}`);
+    const hotelTrickNote = hotelTrickStatusMessage(propCombo);
+    const comboSuffix = hotelTrickNote ? ` ${hotelTrickNote}` : '';
+    this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${comboSuffix}${repetitionNote}`);
     this.updateHud();
 
     if (shouldDepartOnSuccess(this.npc.stage, this.activeVisitor.visit.successMinFearStage)) {

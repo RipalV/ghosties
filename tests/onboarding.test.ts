@@ -193,6 +193,7 @@ describe('contextual coaching', () => {
       repeatedIneffectiveCount: 0,
       routeProgressRatio: 0.2,
       farFromVisitorMs: 0,
+      nearUnusedProp: false,
       shownHints: createCoachingHintSet(),
     });
 
@@ -217,6 +218,7 @@ describe('contextual coaching', () => {
       repeatedIneffectiveCount: 0,
       routeProgressRatio: 0.9,
       farFromVisitorMs: 5000,
+      nearUnusedProp: false,
       shownHints: createCoachingHintSet(),
     });
 

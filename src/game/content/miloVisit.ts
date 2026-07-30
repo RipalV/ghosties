@@ -10,8 +10,8 @@ const ENTRANCE = { x: 920, y: 500 } as const;
 /** Different lobby path from Nora — shorter pauses, fewer POIs, snappier pacing. */
 const POI_COORDS = [
   { x: 1040, y: 460 },
-  { x: 1160, y: 540 },
-  { x: 980, y: 620 },
+  { x: 1080, y: 420 },
+  { x: 950, y: 520 },
 ] as const;
 
 const MILO_PACING = buildVisitPacing({

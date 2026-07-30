@@ -6,6 +6,11 @@ import {
   createScareCastSession,
   type ScareCastSession,
 } from '../scareCast/scareCastSession';
+import {
+  createPropVisitState,
+  resetPropVisitState,
+  type PropVisitState,
+} from '../props';
 
 export const STARTING_ENERGY = 100;
 export const STARTING_SCORE = 0;
@@ -16,6 +21,7 @@ export interface SessionRuntimeState {
   discoveryState: DiscoveryState;
   observationSession: ObservationSession;
   scareCastSession: ScareCastSession;
+  propVisitState: PropVisitState;
   observationBonusTotal: number;
   ineffectiveScareCount: number;
   repeatedScareCount: number;
@@ -34,6 +40,7 @@ export function createSessionRuntimeState(): SessionRuntimeState {
     discoveryState: createDiscoveryState(),
     observationSession: createObservationSession(),
     scareCastSession: createScareCastSession(),
+    propVisitState: createPropVisitState(),
     observationBonusTotal: 0,
     ineffectiveScareCount: 0,
     repeatedScareCount: 0,
@@ -51,6 +58,7 @@ export function resetSessionForNewVisit(): {
       discoveryState: resetDiscoveryState(),
       observationSession: createObservationSession(),
       scareCastSession: createScareCastSession(),
+      propVisitState: resetPropVisitState(),
       observationBonusTotal: 0,
       ineffectiveScareCount: 0,
       repeatedScareCount: 0,
