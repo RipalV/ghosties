@@ -16,8 +16,8 @@ const FIRST_SESSION_VISIT_INDEX = 0;
 const ENTRANCE = { x: 740, y: 420 } as const;
 
 const POI_COORDS = [
-  { x: 620, y: 350 },
-  { x: 520, y: 370 },
+  { x: 600, y: 360 },
+  { x: 540, y: 400 },
   { x: 1180, y: 560 },
   { x: 820, y: 600 },
 ] as const;

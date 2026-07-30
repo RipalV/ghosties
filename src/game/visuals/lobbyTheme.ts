@@ -29,8 +29,11 @@ export const PALETTE = {
   wood: 0x6b4a3a,
   woodLight: 0x8a6550,
   sofa: 0x7a4a68,
-  piano: 0x3d2c4c,
+  /** Near-ebony so the grand piano reads against purple walls, not as another crate. */
+  piano: 0x1a1424,
+  pianoHighlight: 0x3a3048,
   pianoKeys: 0xf5e6c8,
+  pianoBlackKeys: 0x1c1626,
   chair: 0x6a4a4a,
   reception: 0x4a556e,
   brass: 0xc9a34e,
@@ -71,6 +74,7 @@ export type LobbyPropKind =
   | 'sofa'
   | 'armchair'
   | 'piano'
+  | 'fireplace'
   | 'table'
   | 'clock'
   | 'trolley'
@@ -93,8 +97,9 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   { id: 'rug', kind: 'rug', x: 880, y: 530 },
   { id: 'reception', kind: 'reception', x: 520, y: 400 },
   { id: 'sofa', kind: 'sofa', x: 700, y: 330 },
-  { id: 'piano', kind: 'piano', x: 1120, y: 360 },
-  { id: 'clock', kind: 'clock', x: 1000, y: 280 },
+  { id: 'fireplace', kind: 'fireplace', x: 1020, y: 420 },
+  { id: 'piano', kind: 'piano', x: 1180, y: 340 },
+  { id: 'clock', kind: 'clock', x: 980, y: 270 },
   { id: 'armchair', kind: 'armchair', x: 1320, y: 500 },
   { id: 'table', kind: 'table', x: 880, y: 740 },
   { id: 'trolley', kind: 'trolley', x: 620, y: 640 },
