@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { ScareAbility } from '../abilities/ScareAbility';
 import type { ClueDefinition } from '../observation/types';
 import { HUD_LAYOUT } from '../visuals/lobbyTheme';
-import { DomHudControls } from './DomHudControls';
+import { DomHudControls, type DomVisitResultsView } from './DomHudControls';
 import { HudChip } from './HudChip';
 import { OffscreenIndicator } from './OffscreenIndicator';
 import { StatusToast } from './StatusToast';
@@ -20,6 +20,7 @@ export interface GameHudOptions {
   readonly onZoomOut: () => void;
   readonly onObserve: () => void;
   readonly onToggleClues: () => void;
+  readonly onNextVisit: () => void;
 }
 
 /**
@@ -73,6 +74,7 @@ export class GameHud {
       onZoomIn: options.onZoomIn,
       onZoomOut: options.onZoomOut,
       onObserve: options.onObserve,
+      onNextVisit: options.onNextVisit,
     });
 
     this.root.add([this.scoreChip, this.energyChip, this.fearChip, this.toast, this.npcIndicator]);
@@ -168,6 +170,28 @@ export class GameHud {
     this.domHud.setActionCastState(castingIndex, progress);
   }
 
+  setVisitCue(glyph: string, message: string): void {
+    this.domHud.setVisitCue(glyph, message);
+  }
+
+  hideVisitCue(): void {
+    this.domHud.hideVisitCue();
+  }
+
+  showVisitResults(summary: DomVisitResultsView): void {
+    this.domHud.showVisitResults(summary);
+    this.scheduleBlockedRegionRefresh();
+  }
+
+  hideVisitResults(): void {
+    this.domHud.hideVisitResults();
+    this.scheduleBlockedRegionRefresh();
+  }
+
+  setGameplayLocked(locked: boolean): void {
+    this.domHud.setGameplayLocked(locked);
+  }
+
   showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
     const inset = this.readEdgeInsetX() + 20 * this.uiScale;
     const zoomColumn = (HUD_LAYOUT.zoomButtonSize + HUD_LAYOUT.padding) * this.uiScale;
@@ -239,6 +263,12 @@ export class GameHud {
     this.blockedRegions.length = 0;
 
     this.blockedRegions.push(this.domRectToGame(this.domHud.topLeftCluster, touchPad));
+
+    if (!this.domHud.getResultsOverlayElement().hidden) {
+      this.blockedRegions.push(
+        this.domRectToGame(this.domHud.getResultsOverlayElement(), touchPad),
+      );
+    }
 
     const chipsWidth =
       this.scoreChip.chipWidth +

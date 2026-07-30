@@ -4,8 +4,7 @@ import type { FearProfile, FearStage, ScareHistory } from '../fear/FearEngine';
 import { CharacterMarker } from '../visuals/CharacterMarker';
 import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
 import { cssToWorldUnits, fitsAboveHead } from '../visuals/overheadPlacement';
-import { clampToFloor } from '../world/lobbyGeometry';
-import { MOVEMENT, NORA_ROUTE } from '../world/lobbyLayout';
+import { MOVEMENT } from '../world/lobbyLayout';
 
 const STAGE_WORDS: Record<FearStage, string> = {
   calm: 'CALM',
@@ -49,13 +48,12 @@ export class Npc extends Phaser.GameObjects.Container {
   private readonly marker: CharacterMarker;
   private readonly reactionBubble: Phaser.GameObjects.Text;
   private readonly shadow: Phaser.GameObjects.Ellipse;
-  private readonly waypoints: Phaser.Math.Vector2[];
-  private waypointIndex = 0;
   private moveSpeed = MOVEMENT.npcSpeed;
   private pausedUntil = 0;
   private wasMoving = false;
   private scareCastReactionActive = false;
   private scareCastTween?: Phaser.Tweens.Tween;
+  private visitArrivalThreshold = 8;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -114,38 +112,64 @@ export class Npc extends Phaser.GameObjects.Container {
       repeat: -1,
       ease: 'Sine.InOut',
     });
-
-    this.waypoints = NORA_ROUTE.map((point) => {
-      const inside = clampToFloor(point.x, point.y);
-      return new Phaser.Math.Vector2(inside.x, inside.y);
-    });
   }
 
-  update(time: number, deltaMs: number): void {
+  resetForVisit(x: number, y: number): void {
+    this.fear = 0;
+    this.stage = 'calm';
+    this.scareHistory.usesByCategory = {};
+    this.setPosition(x, y);
+    this.syncFear(0, 'calm');
+    this.reactionBubble.setVisible(false);
+    this.face.setText(FACE_BY_STAGE.calm);
+    this.bodyShape.setFillStyle(PALETTE.noraSkin);
+    this.setScareCastReaction(false);
+    this.setScale(1);
+    this.wasMoving = false;
+    this.pausedUntil = 0;
+  }
+
+  updateVisitMovement(
+    time: number,
+    deltaMs: number,
+    options: {
+      shouldMove: boolean;
+      targetX: number;
+      targetY: number;
+      pauseActive: boolean;
+      visible: boolean;
+      arrivalThreshold?: number;
+    },
+  ): void {
+    this.setVisible(options.visible);
     this.placeOverheadBadges();
 
-    if (this.stage === 'possessed' || time < this.pausedUntil) {
-      this.wasMoving = false;
+    if (!options.visible || options.pauseActive || !options.shouldMove || time < this.pausedUntil) {
+      if (!options.shouldMove) this.wasMoving = false;
       return;
     }
 
-    const target = this.waypoints[this.waypointIndex];
-    const direction = target.clone().subtract(new Phaser.Math.Vector2(this.x, this.y));
-    const distance = direction.length();
-    let moving = false;
-
-    if (distance < 8) {
-      this.waypointIndex = (this.waypointIndex + 1) % this.waypoints.length;
-    } else {
-      direction.normalize().scale(this.moveSpeed * (deltaMs / 1000));
-      this.x += direction.x;
-      this.y += direction.y;
-      moving = true;
-    }
+    const threshold = options.arrivalThreshold ?? this.visitArrivalThreshold;
+    const moving = this.moveToward(options.targetX, options.targetY, deltaMs, threshold);
 
     if (moving && !this.wasMoving) this.setScale(1.03);
     else if (!moving && this.wasMoving) this.setScale(1);
     this.wasMoving = moving;
+  }
+
+  private moveToward(
+    targetX: number,
+    targetY: number,
+    deltaMs: number,
+    threshold: number,
+  ): boolean {
+    const direction = new Phaser.Math.Vector2(targetX - this.x, targetY - this.y);
+    const distance = direction.length();
+    if (distance < threshold) return false;
+    direction.normalize().scale(this.moveSpeed * (deltaMs / 1000));
+    this.x += direction.x;
+    this.y += direction.y;
+    return true;
   }
 
   /**

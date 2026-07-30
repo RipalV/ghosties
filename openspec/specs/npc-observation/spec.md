@@ -3,9 +3,7 @@
 ## Purpose
 
 Define nearby Observe interaction for NPCs: keyboard and HUD activation, range gating, timed progress, leave-range cancel rules, and feedback contracts independent of rendering.
-
 ## Requirements
-
 ### Requirement: Observe interaction for nearby NPCs
 The game SHALL provide an Observe action that the player can start on a nearby target NPC using a keyboard shortcut or a dedicated HUD button usable with mouse and touch. Observe SHALL NOT be started by play-area / world-space pointer input (that input remains movement). Starting Observe SHALL NOT spend score or energy.
 
@@ -62,3 +60,20 @@ Observation range SHALL be expressed in the same fixed world coordinates as scar
 - **GIVEN** the player has changed the camera zoom step
 - **WHEN** observation range is evaluated at the same world distance from the NPC
 - **THEN** whether observation may start is identical to the default zoom
+
+### Requirement: Observation blocked and cancelled on departure
+Observe SHALL NOT start when there is no targetable visitor or when the session is visitor departing or results. When departure begins, any in-progress observation SHALL be cancelled (progress cleared, return to idle) while already discovered clues for that visit remain available until results are dismissed or the next visit resets discovery.
+
+#### Scenario: Observe blocked before visitor is targetable
+- **GIVEN** the session is location ready or visitor entering
+- **WHEN** the player activates Observe via keyboard or HUD
+- **THEN** observation does not begin
+- **AND** the UI explains there is no active visitor to observe
+
+#### Scenario: Departure cancels in-progress observation
+- **GIVEN** observation is in progress during active haunting
+- **WHEN** visitor departing begins
+- **THEN** in-progress observation progress is cleared
+- **AND** observation returns to idle
+- **AND** clues already discovered this visit remain available for results
+

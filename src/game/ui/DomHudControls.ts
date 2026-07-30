@@ -15,6 +15,20 @@ export interface DomHudHandlers {
   readonly onZoomIn: () => void;
   readonly onZoomOut: () => void;
   readonly onObserve: () => void;
+  readonly onNextVisit?: () => void;
+}
+
+export interface DomVisitResultsView {
+  readonly headline: string;
+  readonly outcomeGlyph: string;
+  readonly outcomeLabel: string;
+  readonly stageLine: string;
+  readonly scoreLine: string;
+  readonly bonusLine: string | null;
+  readonly notes: readonly string[];
+  readonly cluesTitle: string;
+  readonly clueLines: readonly string[];
+  readonly tip: string;
 }
 
 export interface DomCluePanelEntry {
@@ -56,7 +70,15 @@ export class DomHudControls {
   private readonly observeProgressLabel: HTMLElement;
   private readonly observeProgressRing: HTMLElement;
   private readonly actionButtons: ActionButtonElements[] = [];
+  private readonly visitCue: HTMLElement;
+  private readonly visitCueGlyph: HTMLElement;
+  private readonly visitCueText: HTMLElement;
+  private readonly resultsOverlay: HTMLElement;
+  private readonly resultsBody: HTMLElement;
+  private readonly nextVisitButton: HTMLButtonElement;
   private cluePanelOpen = false;
+  private gameplayLocked = false;
+  private visitCueHideTimer = 0;
 
   constructor(parent: HTMLElement, handlers: DomHudHandlers) {
     this.root = document.createElement('div');
@@ -150,7 +172,40 @@ export class DomHudControls {
     this.zoomOutButton = makeCornerButton('－', 'Zoom out');
     zoom.append(this.zoomInButton, this.zoomOutButton);
 
-    this.root.append(this.topLeftCluster, bottomLeft, zoom);
+    this.visitCue = document.createElement('div');
+    this.visitCue.className = 'dom-visit-cue';
+    this.visitCue.hidden = true;
+    this.visitCue.setAttribute('role', 'status');
+    this.visitCueGlyph = document.createElement('span');
+    this.visitCueGlyph.className = 'dom-visit-cue-glyph';
+    this.visitCueGlyph.setAttribute('aria-hidden', 'true');
+    const visitCueCopy = document.createElement('div');
+    visitCueCopy.className = 'dom-visit-cue-copy';
+    this.visitCueText = document.createElement('p');
+    this.visitCueText.className = 'dom-visit-cue-text';
+    visitCueCopy.append(this.visitCueText);
+    this.visitCue.append(this.visitCueGlyph, visitCueCopy);
+
+    this.resultsOverlay = document.createElement('div');
+    this.resultsOverlay.className = 'dom-results-overlay';
+    this.resultsOverlay.hidden = true;
+    this.resultsOverlay.setAttribute('role', 'dialog');
+    this.resultsOverlay.setAttribute('aria-modal', 'true');
+    this.resultsOverlay.setAttribute('aria-label', 'Visit results');
+
+    const resultsPanel = document.createElement('div');
+    resultsPanel.className = 'dom-results-panel';
+    this.resultsBody = document.createElement('div');
+    this.resultsBody.className = 'dom-results-body';
+    this.nextVisitButton = document.createElement('button');
+    this.nextVisitButton.type = 'button';
+    this.nextVisitButton.className = 'dom-results-next-button';
+    this.nextVisitButton.textContent = 'Next visit';
+    this.nextVisitButton.setAttribute('aria-label', 'Start the next visit');
+    resultsPanel.append(this.resultsBody, this.nextVisitButton);
+    this.resultsOverlay.append(resultsPanel);
+
+    this.root.append(this.topLeftCluster, bottomLeft, zoom, this.visitCue, this.resultsOverlay);
     parent.append(this.root);
 
     bindPress(this.objectiveButton, () => {
@@ -169,6 +224,9 @@ export class DomHudControls {
     bindPress(this.observeButton, () => {
       this.flashButton(this.observeButton);
       handlers.onObserve();
+    });
+    bindPress(this.nextVisitButton, () => {
+      handlers.onNextVisit?.();
     });
 
     this.setObjectiveNotification(true);
@@ -312,7 +370,111 @@ export class DomHudControls {
     });
   }
 
+  setVisitCue(glyph: string, message: string): void {
+    this.visitCueGlyph.textContent = glyph;
+    this.visitCueText.textContent = message;
+    this.visitCue.hidden = false;
+    window.clearTimeout(this.visitCueHideTimer);
+    this.visitCueHideTimer = window.setTimeout(() => {
+      this.visitCue.hidden = true;
+    }, 2800);
+  }
+
+  hideVisitCue(): void {
+    window.clearTimeout(this.visitCueHideTimer);
+    this.visitCue.hidden = true;
+  }
+
+  showVisitResults(summary: DomVisitResultsView): void {
+    this.resultsBody.replaceChildren();
+
+    const headline = document.createElement('h2');
+    headline.className = 'dom-results-headline';
+    headline.textContent = summary.headline;
+
+    const outcomeRow = document.createElement('p');
+    outcomeRow.className = 'dom-results-outcome';
+    const outcomeGlyph = document.createElement('span');
+    outcomeGlyph.className = 'dom-results-outcome-glyph';
+    outcomeGlyph.textContent = summary.outcomeGlyph;
+    outcomeGlyph.setAttribute('aria-hidden', 'true');
+    const outcomeLabel = document.createElement('span');
+    outcomeLabel.className = 'dom-results-outcome-label';
+    outcomeLabel.textContent = summary.outcomeLabel;
+    outcomeRow.append(outcomeGlyph, outcomeLabel);
+
+    const stage = document.createElement('p');
+    stage.className = 'dom-results-line';
+    stage.textContent = summary.stageLine;
+
+    const score = document.createElement('p');
+    score.className = 'dom-results-line dom-results-score';
+    score.textContent = summary.scoreLine;
+
+    this.resultsBody.append(headline, outcomeRow, stage, score);
+
+    if (summary.bonusLine) {
+      const bonus = document.createElement('p');
+      bonus.className = 'dom-results-line';
+      bonus.textContent = summary.bonusLine;
+      this.resultsBody.append(bonus);
+    }
+
+    summary.notes.forEach((note) => {
+      const line = document.createElement('p');
+      line.className = 'dom-results-note';
+      line.textContent = note;
+      this.resultsBody.append(line);
+    });
+
+    const cluesTitle = document.createElement('h3');
+    cluesTitle.className = 'dom-results-subtitle';
+    cluesTitle.textContent = summary.cluesTitle;
+    this.resultsBody.append(cluesTitle);
+
+    const clueList = document.createElement('ul');
+    clueList.className = 'dom-results-clue-list';
+    summary.clueLines.forEach((text) => {
+      const item = document.createElement('li');
+      item.textContent = text;
+      clueList.append(item);
+    });
+    this.resultsBody.append(clueList);
+
+    const tip = document.createElement('p');
+    tip.className = 'dom-results-tip';
+    tip.textContent = `Ghost tip: ${summary.tip}`;
+    this.resultsBody.append(tip);
+
+    this.resultsOverlay.hidden = false;
+    this.gameplayLocked = true;
+    this.applyGameplayLock();
+  }
+
+  hideVisitResults(): void {
+    this.resultsOverlay.hidden = true;
+    this.applyGameplayLock();
+  }
+
+  setGameplayLocked(locked: boolean): void {
+    this.gameplayLocked = locked;
+    this.applyGameplayLock();
+  }
+
+  getResultsOverlayElement(): HTMLElement {
+    return this.resultsOverlay;
+  }
+
+  private applyGameplayLock(): void {
+    const locked = this.gameplayLocked || !this.resultsOverlay.hidden;
+    this.observeButton.disabled = locked;
+    this.actionButtons.forEach(({ button }) => {
+      button.disabled = locked;
+    });
+  }
+
   destroy(): void {
+    window.clearTimeout(this.visitCueHideTimer);
     window.removeEventListener('resize', this.handleResize);
     this.root.remove();
   }
