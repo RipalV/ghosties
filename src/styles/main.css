@@ -411,6 +411,37 @@ body {
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
 }
 
+.dom-hud-action-ring {
+  position: absolute;
+  inset: 4px;
+  border-radius: 10px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.dom-hud-action-progress {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff7cf;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.dom-hud-action-progress[hidden] {
+  display: none;
+}
+
+.dom-hud-action-button[data-casting='true'] .dom-hud-action-ring {
+  opacity: 1;
+  background: conic-gradient(#8a78c0 calc(var(--progress, 0) * 360deg), transparent 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+}
+
 .dom-hud-button {
   position: relative;
   width: var(--hud-corner-size);

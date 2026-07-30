@@ -9,8 +9,9 @@ import {
   discoverClue,
   resetDiscoveryState,
 } from '../observation/discoveryStore';
-import { applyObservationBonus } from '../observation/observationBonus';
+import { applyObservationBonus, isObservationBonusEligible } from '../observation/observationBonus';
 import {
+  cancelObservation,
   canStartObservation,
   createObservationSession,
   findNextUndiscoveredClue,
@@ -19,6 +20,20 @@ import {
   tickObservation,
 } from '../observation/observationSession';
 import type { ClueDefinition, DiscoveryState, ObservationSession } from '../observation/types';
+import {
+  observationBonusAllowed,
+  scaleScareResult,
+  shouldApplyScareOutcome,
+} from '../scareCast/scareCastExposure';
+import {
+  SCARE_CAST_DURATION_MS,
+  cancelScareCast,
+  createScareCastSession,
+  isInAbilityRange,
+  tickScareCast,
+  tryStartScareCast,
+  type ScareCastSession,
+} from '../scareCast/scareCastSession';
 import { GameHud } from '../ui/GameHud';
 import { LobbyAmbience } from '../visuals/LobbyAmbience';
 import { LobbyEnvironment } from '../visuals/LobbyEnvironment';
@@ -51,6 +66,14 @@ export class GameScene extends Phaser.Scene {
   private score = 0;
   private energy = 100;
   private observationSession: ObservationSession = createObservationSession();
+  private scareCastSession: ScareCastSession = createScareCastSession();
+  /** Last in-range sample while a scare cast is active (for leave-range status). */
+  private scareCastWasInRange = false;
+  /** Avoids per-frame DOM writes while a scare cast ring is filling. */
+  private lastScareCastHudPercent = -1;
+  private lastScareCastHudIndex: number | null = null;
+  /** Tracks Nora mid-cast reaction so we only update on range transitions. */
+  private scareCastNoraInRange = false;
   private discoveryState: DiscoveryState = createDiscoveryState();
   private readonly npcContent = NORA_CONTENT;
   private keys!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>;
@@ -73,6 +96,7 @@ export class GameScene extends Phaser.Scene {
 
     this.discoveryState = resetDiscoveryState();
     this.observationSession = createObservationSession();
+    this.scareCastSession = createScareCastSession();
 
     this.hud = new GameHud(this, this.uiScale, {
       objective: OBJECTIVE,
@@ -191,6 +215,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePinchZoom();
     this.updateNpcIndicator();
     this.updateObservation(delta);
+    this.updateScareCast(delta);
 
     this.abilityKeys.forEach((key, index) => {
       if (Phaser.Input.Keyboard.JustDown(key)) this.useAbility(STARTING_ABILITIES[index]);
@@ -222,6 +247,12 @@ export class GameScene extends Phaser.Scene {
     if (!findNextUndiscoveredClue(this.npcContent.clues, this.discoveryState)) {
       this.hud.setStatus('You already found every clue. Tap 🧩 to review them, then try a scare!');
       return;
+    }
+
+    if (this.scareCastSession.status === 'casting') {
+      this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
+      this.refreshScareCastHud();
     }
 
     this.observationSession = startObservation(this.observationSession);
@@ -302,6 +333,213 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private abilityIndex(abilityId: string): number {
+    return STARTING_ABILITIES.findIndex((entry) => entry.id === abilityId);
+  }
+
+  private inAbilityRange(ability: ScareAbility): boolean {
+    return isInAbilityRange(this.npcDistance(), ability.range);
+  }
+
+  private resetScareCastHudCache(): void {
+    this.lastScareCastHudPercent = -1;
+    this.lastScareCastHudIndex = null;
+  }
+
+  private syncScareCastPresentation(casting: boolean, noraInRange: boolean): void {
+    this.ghost.setCastingPresentation(casting);
+
+    if (!casting) {
+      if (this.scareCastNoraInRange) {
+        this.npc.setScareCastReaction(false);
+        this.scareCastNoraInRange = false;
+      }
+      return;
+    }
+
+    if (noraInRange !== this.scareCastNoraInRange) {
+      this.npc.setScareCastReaction(noraInRange);
+      this.scareCastNoraInRange = noraInRange;
+    }
+  }
+
+  private refreshScareCastHud(inRange = false): void {
+    if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
+      if (this.lastScareCastHudIndex !== null) {
+        this.hud.setScareCastState(null, 0);
+        this.resetScareCastHudCache();
+      }
+      this.syncScareCastPresentation(false, false);
+      return;
+    }
+
+    const index = this.abilityIndex(this.scareCastSession.abilityId);
+    const hudIndex = index >= 0 ? index : null;
+    const percent = Math.round(this.scareCastSession.progress * 100);
+    if (hudIndex !== this.lastScareCastHudIndex || percent !== this.lastScareCastHudPercent) {
+      this.hud.setScareCastState(hudIndex, this.scareCastSession.progress);
+      this.lastScareCastHudIndex = hudIndex;
+      this.lastScareCastHudPercent = percent;
+    }
+
+    this.syncScareCastPresentation(true, inRange);
+  }
+
+  private updateScareCast(delta: number): void {
+    if (this.scareCastSession.status !== 'casting' || !this.scareCastSession.abilityId) {
+      this.scareCastWasInRange = false;
+      this.refreshScareCastHud();
+      return;
+    }
+
+    const ability = STARTING_ABILITIES.find((entry) => entry.id === this.scareCastSession.abilityId);
+    if (!ability) {
+      this.scareCastSession = cancelScareCast(this.scareCastSession);
+      this.scareCastWasInRange = false;
+      this.refreshScareCastHud();
+      return;
+    }
+
+    const inRange = this.inAbilityRange(ability);
+    if (!this.scareCastWasInRange && inRange) {
+      this.hud.setStatus(`${ability.name} casting… Nora is in the spooky zone!`);
+    } else if (this.scareCastWasInRange && !inRange) {
+      this.hud.setStatus(
+        `${ability.name} casting… Nora left the spooky zone — get closer to expose her.`,
+      );
+    }
+    this.scareCastWasInRange = inRange;
+
+    const tick = tickScareCast(
+      this.scareCastSession,
+      delta,
+      SCARE_CAST_DURATION_MS,
+      inRange,
+    );
+    this.scareCastSession = tick.session;
+
+    if (tick.completedAbilityId !== null && tick.exposureRatio !== null) {
+      this.scareCastWasInRange = false;
+      const completed = STARTING_ABILITIES.find((entry) => entry.id === tick.completedAbilityId);
+      if (completed) {
+        if (shouldApplyScareOutcome(tick.exposureRatio)) {
+          this.resolveScare(completed, tick.exposureRatio);
+        } else {
+          this.hud.setStatus(`${ability.name} fizzled — Nora was never in range.`);
+        }
+      }
+    }
+
+    const stillCasting =
+      this.scareCastSession.status === 'casting' && this.scareCastSession.abilityId !== null;
+    this.refreshScareCastHud(stillCasting ? inRange : false);
+  }
+
+  private useAbility(ability: ScareAbility): void {
+    const affordable = this.energy >= ability.energyCost;
+    const inRange = this.inAbilityRange(ability);
+
+    if (!affordable) {
+      this.hud.setStatus('Not enough ghost energy. Give Nora a moment to recover.');
+      return;
+    }
+
+    const start = tryStartScareCast(this.scareCastSession, ability.id, affordable);
+    if (start.sameAbilityBlocked) {
+      this.hud.setStatus(`${ability.name} is still casting… wait for the ring to finish.`);
+      return;
+    }
+
+    if (!start.started) return;
+
+    if (this.observationSession.status === 'observing') {
+      this.observationSession = cancelObservation(this.observationSession);
+      this.refreshObservationHud();
+    }
+
+    this.scareCastSession = start.session;
+    this.scareCastWasInRange = inRange;
+
+    if (start.switchedFromAbilityId) {
+      const previous = STARTING_ABILITIES.find((entry) => entry.id === start.switchedFromAbilityId);
+      const previousName = previous?.name ?? 'that scare';
+      this.hud.setStatus(`Switched to ${ability.name} — ${previousName} was cancelled.`);
+    } else if (inRange) {
+      this.hud.setStatus(`Casting ${ability.name}… stay close until the ring fills.`);
+    } else {
+      this.hud.setStatus(`Casting ${ability.name}… get closer to affect Nora.`);
+    }
+
+    this.resetScareCastHudCache();
+    this.refreshScareCastHud(inRange);
+  }
+
+  private resolveScare(ability: ScareAbility, exposureRatio: number): void {
+    this.energy -= ability.energyCost;
+    const raw = resolveScare(this.npc.fearProfile, this.npc.scareHistory, ability.category);
+    this.npc.scareHistory.usesByCategory[ability.category] =
+      (this.npc.scareHistory.usesByCategory[ability.category] ?? 0) + 1;
+
+    const result = scaleScareResult(raw, exposureRatio);
+
+    let bonus = { bonus: 0, discovery: this.discoveryState };
+    if (
+      isObservationBonusEligible(
+        ability.category,
+        this.npcContent.primaryFear,
+        this.discoveryState,
+        this.npcContent.clues,
+      ) &&
+      observationBonusAllowed(exposureRatio)
+    ) {
+      bonus = applyObservationBonus(
+        this.discoveryState,
+        ability.category,
+        this.npcContent.primaryFear,
+        this.npcContent.clues,
+      );
+    }
+    this.discoveryState = bonus.discovery;
+
+    const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
+    this.npc.syncFear(fear, getFearStage(fear));
+    this.score = Math.max(0, this.score + result.scoreDelta + bonus.bonus);
+
+    const ineffective = raw.strength === 'none';
+    const failed = ineffective;
+
+    if (failed) {
+      this.ghost.showFailedScareGlimpse();
+    } else {
+      this.ghost.playScarePulse(true);
+    }
+
+    if (failed) {
+      this.npc.react('Ha! I saw you!', this.npc.stage, true);
+    } else if (result.fearGained > 0) {
+      this.npc.react(`${result.reaction}\n+${result.fearGained} fear`, this.npc.stage, false);
+    } else {
+      this.npc.react(result.reaction, this.npc.stage, false);
+    }
+
+    const repetitionNote = raw.noveltyMultiplier < 1
+      ? ` Novelty is down to ${Math.round(raw.noveltyMultiplier * 100)}%.`
+      : '';
+    const bonusNote = bonus.bonus > 0 ? ` Observation bonus +${bonus.bonus}!` : '';
+    this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${repetitionNote}`);
+    this.updateHud();
+
+    if (this.npc.stage === 'possessed') {
+      this.hud.setStatus('Nora is goofily possessed — haunting complete! 👻');
+      this.hud.setObjective(true);
+    }
+
+    this.time.delayedCall(1800, () => {
+      this.energy = Math.min(100, this.energy + 4);
+      this.updateHud();
+    });
+  }
+
   private updatePinchZoom(): void {
     const first = this.input.pointer1;
     const second = this.input.pointer2;
@@ -345,63 +583,6 @@ export class GameScene extends Phaser.Scene {
 
     const distance = Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, this.npc.x, this.npc.y);
     this.hud.showNpcIndicator({ x: screenX, y: screenY }, distance);
-  }
-
-  private useAbility(ability: ScareAbility): void {
-    if (this.energy < ability.energyCost) {
-      this.hud.setStatus('Not enough ghost energy. Give Nora a moment to recover.');
-      return;
-    }
-
-    const distance = Phaser.Math.Distance.Between(this.ghost.x, this.ghost.y, this.npc.x, this.npc.y);
-    if (distance > ability.range) {
-      this.hud.setStatus(`${ability.name} missed — move closer to Nora.`);
-      return;
-    }
-
-    this.energy -= ability.energyCost;
-    const result = resolveScare(this.npc.fearProfile, this.npc.scareHistory, ability.category);
-    this.npc.scareHistory.usesByCategory[ability.category] =
-      (this.npc.scareHistory.usesByCategory[ability.category] ?? 0) + 1;
-
-    const bonus = applyObservationBonus(
-      this.discoveryState,
-      ability.category,
-      this.npcContent.primaryFear,
-      this.npcContent.clues,
-    );
-    this.discoveryState = bonus.discovery;
-
-    const fear = Phaser.Math.Clamp(this.npc.fear + result.fearGained, 0, NPC_MAX_FEAR);
-    this.npc.syncFear(fear, getFearStage(fear));
-    this.score = Math.max(0, this.score + result.scoreDelta + bonus.bonus);
-
-    const failed = result.strength === 'none';
-    if (failed) this.ghost.showFailedScareGlimpse();
-    this.ghost.playScarePulse(!failed);
-
-    this.npc.react(
-      failed ? 'Ha! I saw you!' : `${result.reaction}\n+${result.fearGained} fear`,
-      this.npc.stage,
-      failed,
-    );
-
-    const repetitionNote = result.noveltyMultiplier < 1
-      ? ` Novelty is down to ${Math.round(result.noveltyMultiplier * 100)}%.`
-      : '';
-    const bonusNote = bonus.bonus > 0 ? ` Observation bonus +${bonus.bonus}!` : '';
-    this.hud.setStatus(`${ability.name}: ${result.reaction}${bonusNote}${repetitionNote}`);
-    this.updateHud();
-
-    if (this.npc.stage === 'possessed') {
-      this.hud.setStatus('Nora is goofily possessed — haunting complete! 👻');
-      this.hud.setObjective(true);
-    }
-
-    this.time.delayedCall(1800, () => {
-      this.energy = Math.min(100, this.energy + 4);
-      this.updateHud();
-    });
   }
 
   private updateHud(): void {

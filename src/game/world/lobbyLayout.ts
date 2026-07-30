@@ -56,5 +56,9 @@ export const NORA_ROUTE = [
 export const MOVEMENT = {
   /** Raised alongside the larger lobby so crossing it stays brisk (design decision 3). */
   ghostSpeed: 300,
+  /** World travel multiplier at full cast slowdown (~one eighth normal speed). */
+  ghostCastSpeedMultiplier: 0.125,
+  /** Time to ease between normal and cast travel speed (ms). */
+  ghostCastSpeedTransitionMs: 450,
   npcSpeed: 70,
 } as const;

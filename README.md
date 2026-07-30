@@ -49,9 +49,10 @@ Install Node.js 26 or newer from [nodejs.org](https://nodejs.org/), then run `np
 - Cold Puff: 2
 - Object Nudge: 3
 - The square scare buttons beside the ghost card work with mouse or touch
+- Scares cast briefly — a ring fills on the button, then the scare lands. You can start a cast from anywhere; stay in range while it plays to **expose** Nora — the longer she is in range, the stronger the effect. Energy is spent only if Nora was exposed when the cast finishes. You can switch to another scare while one is casting. While casting, the ghost moves much slower (about **one-eighth speed**, easing in and out smoothly) and shows a **CASTING** marker; Nora may react with a mild “Something spooky…” cue when you are in range.
 - Zoom: the **＋** and **－** buttons on the right edge, or a pinch (both snap to fixed zoom steps)
 
-While observing, stay within range of Nora. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit.
+While observing, stay within range of Nora. Each Observe unlocks **one** new clue — observe again for the next. If you move too far away, observation progress is cancelled but any clues you already discovered stay in the clue panel for this visit. Starting Observe cancels an in-progress scare cast, and vice versa.
 
 ## Mobile play
 
