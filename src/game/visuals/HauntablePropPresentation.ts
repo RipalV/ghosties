@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { LOBBY_PROPS, type LobbyPropDefinition } from '../content/lobbyProps';
 import { isWithinRadius } from '../props/propDistance';
 import { isPropAwarded, type PropVisitState } from '../props';
-import { drawIsoBox, shadeColor } from './isoDraw';
 import { PALETTE } from './lobbyTheme';
 
 type PropVisualPhase = 'idle' | 'proximity' | 'casting' | 'resolve';
@@ -10,14 +9,15 @@ type PropVisualPhase = 'idle' | 'proximity' | 'casting' | 'resolve';
 interface PropVisual {
   readonly prop: LobbyPropDefinition;
   readonly container: Phaser.GameObjects.Container;
+  readonly ring: Phaser.GameObjects.Graphics;
   readonly glow: Phaser.GameObjects.Arc;
   readonly icon: Phaser.GameObjects.Text;
-  readonly silhouette: Phaser.GameObjects.Graphics;
 }
 
 /**
- * Gameplay overlays for hauntable lobby props: proximity cue, cast pulse, resolve burst.
- * Static furniture silhouettes remain in LobbyEnvironment.
+ * Gameplay overlays for hauntable lobby props.
+ * Furniture silhouettes stay in LobbyEnvironment — this only shows proximity /
+ * cast / resolve cues so props are never double-drawn as crude boxes.
  */
 export class HauntablePropPresentation {
   readonly container: Phaser.GameObjects.Container;
@@ -44,8 +44,7 @@ export class HauntablePropPresentation {
 
   setLinkedProp(propId: string | null): void {
     for (const visual of this.visuals) {
-      const casting = propId !== null && visual.prop.id === propId;
-      visual.container.setData('casting', casting);
+      visual.container.setData('casting', propId !== null && visual.prop.id === propId);
     }
   }
 
@@ -54,8 +53,6 @@ export class HauntablePropPresentation {
     if (!visual) return;
 
     visual.container.setData('resolveUntil', this.container.scene.time.now + 900);
-    visual.icon.setText('✨');
-    visual.glow.setAlpha(0.55);
 
     const burst = this.container.scene.add
       .text(visual.prop.position.x, visual.prop.position.y - 72, reactionCopy, {
@@ -136,86 +133,69 @@ export class HauntablePropPresentation {
   }
 
   private applyPhase(visual: PropVisual, phase: PropVisualPhase): void {
-    switch (phase) {
-      case 'casting':
-        visual.glow.setFillStyle(PALETTE.ghostGlow, 0.42);
-        visual.glow.setScale(1.15);
-        visual.glow.setAlpha(0.5);
-        visual.icon.setText('👻');
-        visual.icon.setAlpha(1);
-        break;
-      case 'proximity':
-        visual.glow.setFillStyle(PALETTE.brass, 0.35);
-        visual.glow.setScale(1.05);
-        visual.glow.setAlpha(0.38);
-        visual.icon.setText('◇');
-        visual.icon.setAlpha(0.95);
-        break;
-      case 'resolve':
-        visual.glow.setFillStyle(PALETTE.lampWarm, 0.45);
-        visual.glow.setScale(1.2);
-        visual.glow.setAlpha(0.55);
-        visual.icon.setText('✨');
-        visual.icon.setAlpha(1);
-        break;
-      default:
-        visual.glow.setFillStyle(PALETTE.hudStroke, 0.12);
-        visual.glow.setScale(0.85);
-        visual.glow.setAlpha(0.15);
-        visual.icon.setText('');
-        visual.icon.setAlpha(0);
-        break;
+    visual.ring.clear();
+
+    if (phase === 'idle') {
+      visual.glow.setAlpha(0);
+      visual.glow.setScale(0.8);
+      visual.icon.setText('');
+      visual.icon.setAlpha(0);
+      return;
     }
+
+    const ringColor =
+      phase === 'casting'
+        ? PALETTE.ghostGlow
+        : phase === 'resolve'
+          ? PALETTE.lampWarm
+          : PALETTE.brass;
+
+    // Diamond ring + icon (shape + motion), never colour alone.
+    visual.ring.lineStyle(3, ringColor, phase === 'proximity' ? 0.75 : 0.95);
+    visual.ring.strokeTriangle(0, -28, -22, 10, 22, 10);
+    visual.ring.lineStyle(2, ringColor, 0.45);
+    visual.ring.strokeCircle(0, -4, 34);
+
+    visual.glow.setFillStyle(ringColor, phase === 'casting' ? 0.32 : 0.22);
+    visual.glow.setScale(phase === 'resolve' ? 1.2 : phase === 'casting' ? 1.12 : 1);
+    visual.glow.setAlpha(phase === 'casting' ? 0.45 : 0.32);
+
+    const icon =
+      phase === 'casting' ? '👻' : phase === 'resolve' ? '✨' : this.idleCueIcon(visual.prop.visualKey);
+    visual.icon.setText(icon);
+    visual.icon.setAlpha(1);
+  }
+
+  private idleCueIcon(visualKey: string): string {
+    if (visualKey === 'bell') return '🛎';
+    if (visualKey === 'portrait') return '🖼';
+    if (visualKey === 'fireplace') return '❄';
+    return '◇';
   }
 
   private createPropVisual(scene: Phaser.Scene, prop: LobbyPropDefinition): PropVisual {
     const container = scene.add.container(prop.position.x, prop.position.y);
-    const glow = scene.add.circle(0, -8, 36, PALETTE.hudStroke, 0.12);
-    const silhouette = scene.add.graphics();
-    this.drawSilhouette(silhouette, prop.visualKey);
-    const icon = scene.add.text(0, -46, '', {
-      fontFamily: 'Trebuchet MS',
-      fontSize: '22px',
-      color: '#fff7cf',
-    }).setOrigin(0.5);
+    const glow = scene.add.circle(0, -4, 32, PALETTE.hudStroke, 0).setAlpha(0);
+    const ring = scene.add.graphics();
+    const icon = scene.add
+      .text(0, -52, '', {
+        fontFamily: 'Trebuchet MS',
+        fontSize: '22px',
+        color: '#fff7cf',
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
 
-    container.add([glow, silhouette, icon]);
+    container.add([glow, ring, icon]);
 
     scene.tweens.add({
       targets: glow,
-      scale: { from: 0.82, to: 0.92 },
-      alpha: { from: 0.1, to: 0.22 },
-      duration: 1400,
+      scale: { from: 0.95, to: 1.08 },
+      duration: 1200,
       yoyo: true,
       repeat: -1,
     });
 
-    return { prop, container, glow, icon, silhouette };
-  }
-
-  private drawSilhouette(g: Phaser.GameObjects.Graphics, visualKey: string): void {
-    switch (visualKey) {
-      case 'bell':
-        drawIsoBox(g, { x: 0, y: 8, width: 28, depth: 18, height: 10, color: PALETTE.brass });
-        g.fillStyle(PALETTE.brass, 1);
-        g.fillCircle(0, -10, 10);
-        break;
-      case 'portrait':
-        drawIsoBox(g, { x: 0, y: 6, width: 52, depth: 12, height: 38, color: PALETTE.wood });
-        g.fillStyle(0x2a1f40, 1);
-        g.fillRect(-18, -28, 36, 28);
-        g.lineStyle(2, PALETTE.woodLight, 0.85);
-        g.strokeRect(-18, -28, 36, 28);
-        break;
-      case 'fireplace':
-        drawIsoBox(g, { x: 0, y: 10, width: 70, depth: 34, height: 42, color: shadeColor(PALETTE.wood, 0.82) });
-        g.fillStyle(PALETTE.moonlight, 0.35);
-        g.fillRect(-16, -18, 32, 22);
-        g.lineStyle(2, PALETTE.brass, 0.7);
-        g.strokeRect(-16, -18, 32, 22);
-        break;
-      default:
-        break;
-    }
+    return { prop, container, ring, glow, icon };
   }
 }

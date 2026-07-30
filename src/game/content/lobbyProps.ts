@@ -31,7 +31,8 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'reception-bell',
     displayName: 'Reception bell',
-    position: { x: 574, y: 319 },
+    /** Matches the brass bell on the reception counter in LobbyEnvironment. */
+    position: { x: 574, y: 333 },
     compatibleCategory: 'object',
     ghostActivationRadius: 140,
     visitorReactionRadius: 120,
@@ -45,10 +46,11 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'crooked-portrait',
     displayName: 'Crooked portrait',
-    position: { x: 495, y: 356 },
+    /** Floor hotspot under the left-wall painting (not a second floor frame). */
+    position: { x: 540, y: 390 },
     compatibleCategory: 'whisper',
     ghostActivationRadius: 130,
-    visitorReactionRadius: 115,
+    visitorReactionRadius: 120,
     visualKey: 'portrait',
     defaultReactionCopy: 'The portrait whispers back — eerie!',
     visitorReactions: {
@@ -59,7 +61,8 @@ export const LOBBY_PROPS: readonly LobbyPropDefinition[] = [
   {
     id: 'drafty-fireplace',
     displayName: 'Drafty fireplace',
-    position: { x: 1050, y: 400 },
+    /** Matches the fireplace prop beside the piano nook. */
+    position: { x: 1020, y: 420 },
     compatibleCategory: 'cold',
     ghostActivationRadius: 140,
     visitorReactionRadius: 125,

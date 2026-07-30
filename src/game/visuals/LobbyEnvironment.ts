@@ -278,13 +278,24 @@ export class LobbyEnvironment {
   private drawWallDecor(scene: Phaser.Scene): void {
     const g = this.addGraphics(scene);
 
-    // Framed painting on the left wall.
-    const frame = this.drawWallPanel(g, this.left, this.back, 0.45, 150, 84, 46, PALETTE.wood);
-    this.drawWallPanel(g, this.left, this.back, 0.45, 132, 68, 54, 0x2a1f40);
-    this.drawWallPanel(g, this.left, this.back, 0.42, 60, 34, 70, PALETTE.moonlight, 0.3);
-    g.lineStyle(2, PALETTE.woodLight, 0.8);
+    // Crooked portrait on the left wall — readable frame, canvas, and a tiny face.
+    // Slightly skewed t-span so it reads as hung askew (hauntable Whisper prop).
+    const outer = this.drawWallPanel(g, this.left, this.back, 0.44, 168, 92, 52, PALETTE.wood);
+    this.drawWallPanel(g, this.left, this.back, 0.445, 152, 78, 60, shadeColor(PALETTE.wood, 0.72));
+    const canvas = this.drawWallPanel(g, this.left, this.back, 0.45, 128, 64, 68, 0x2c2148);
+    // Soft moonlight wash + a simple painted figure so it is clearly a portrait.
+    this.drawWallPanel(g, this.left, this.back, 0.43, 50, 28, 92, PALETTE.moonlight, 0.22);
+    const midX = (canvas.start.x + canvas.end.x) / 2;
+    const midY = (canvas.start.y + canvas.end.y) / 2 - 68;
+    g.fillStyle(PALETTE.noraSkin, 0.95);
+    g.fillCircle(midX + 6, midY - 10, 11);
+    g.fillStyle(shadeColor(PALETTE.sofa, 0.9), 0.95);
+    g.fillEllipse(midX + 6, midY + 14, 28, 22);
+    g.fillStyle(PALETTE.woodLight, 0.55);
+    g.fillCircle(midX - 18, midY + 6, 5);
+    g.lineStyle(3, PALETTE.brass, 0.85);
     g.strokeLineShape(
-      new Phaser.Geom.Line(frame.start.x, frame.start.y - 46, frame.end.x, frame.end.y - 46),
+      new Phaser.Geom.Line(outer.start.x, outer.start.y - 52, outer.end.x + 8, outer.end.y - 48),
     );
 
     // Moonlit window on the right wall.
@@ -333,6 +344,220 @@ export class LobbyEnvironment {
     }
   }
 
+  /**
+   * Storybook grand piano: wing case, open lid, readable keyboard, legs, bench.
+   * Drawn with custom polygons so it never reads as a purple packing crate.
+   */
+  private drawGrandPiano(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
+    const ebony = PALETTE.piano;
+    const rim = PALETTE.pianoHighlight;
+    const bodyH = 44;
+
+    drawContactShadow(g, { x: x - 10, y: y + 8, width: 240, depth: 130 });
+
+    // Three tapered legs with brass cups — landmark of a grand, not a box.
+    const legs: readonly { lx: number; ly: number }[] = [
+      { lx: x - 70, ly: y - 10 },
+      { lx: x + 55, ly: y - 28 },
+      { lx: x + 70, ly: y + 42 },
+    ];
+    for (const { lx, ly } of legs) {
+      g.fillStyle(shadeColor(ebony, 0.85), 1);
+      g.fillTriangle(lx - 5, ly, lx + 5, ly, lx, ly - bodyH - 4);
+      g.fillStyle(PALETTE.brass, 0.95);
+      g.fillEllipse(lx, ly + 2, 14, 7);
+    }
+
+    // Wing footprint (top of case): wide at the keyboard, tapering to the tail.
+    const wingTop = [
+      [x - 110, y - 8 - bodyH],
+      [x - 40, y - 58 - bodyH],
+      [x + 30, y - 62 - bodyH],
+      [x + 95, y - 20 - bodyH],
+      [x + 100, y + 28 - bodyH],
+      [x + 40, y + 52 - bodyH],
+      [x - 50, y + 40 - bodyH],
+    ] as const;
+    const wingBase = wingTop.map(([wx, wy]) => [wx, wy + bodyH] as const);
+
+    // Side skirts of the wing.
+    g.fillStyle(shadeColor(ebony, SHADING.left), 1);
+    g.beginPath();
+    g.moveTo(wingBase[0][0], wingBase[0][1]);
+    g.lineTo(wingTop[0][0], wingTop[0][1]);
+    g.lineTo(wingTop[1][0], wingTop[1][1]);
+    g.lineTo(wingTop[2][0], wingTop[2][1]);
+    g.lineTo(wingBase[2][0], wingBase[2][1]);
+    g.lineTo(wingBase[1][0], wingBase[1][1]);
+    g.closePath();
+    g.fillPath();
+
+    g.fillStyle(shadeColor(ebony, SHADING.right), 1);
+    g.beginPath();
+    g.moveTo(wingBase[2][0], wingBase[2][1]);
+    g.lineTo(wingTop[2][0], wingTop[2][1]);
+    g.lineTo(wingTop[3][0], wingTop[3][1]);
+    g.lineTo(wingTop[4][0], wingTop[4][1]);
+    g.lineTo(wingBase[4][0], wingBase[4][1]);
+    g.lineTo(wingBase[3][0], wingBase[3][1]);
+    g.closePath();
+    g.fillPath();
+
+    g.fillStyle(shadeColor(ebony, 0.78), 1);
+    g.beginPath();
+    g.moveTo(wingBase[4][0], wingBase[4][1]);
+    g.lineTo(wingTop[4][0], wingTop[4][1]);
+    g.lineTo(wingTop[5][0], wingTop[5][1]);
+    g.lineTo(wingTop[6][0], wingTop[6][1]);
+    g.lineTo(wingBase[6][0], wingBase[6][1]);
+    g.lineTo(wingBase[5][0], wingBase[5][1]);
+    g.closePath();
+    g.fillPath();
+
+    // Polished top face of the case.
+    g.fillStyle(shadeColor(ebony, SHADING.top), 1);
+    g.beginPath();
+    g.moveTo(wingTop[0][0], wingTop[0][1]);
+    for (let i = 1; i < wingTop.length; i += 1) {
+      g.lineTo(wingTop[i][0], wingTop[i][1]);
+    }
+    g.closePath();
+    g.fillPath();
+
+    // Thin brass rim around the lid edge.
+    g.lineStyle(2, PALETTE.brass, 0.55);
+    g.beginPath();
+    g.moveTo(wingTop[0][0], wingTop[0][1]);
+    for (let i = 1; i < wingTop.length; i += 1) {
+      g.lineTo(wingTop[i][0], wingTop[i][1]);
+    }
+    g.closePath();
+    g.strokePath();
+
+    // Prop stick + open lid (tilted diamond reading as a raised wing).
+    g.lineStyle(3, shadeColor(rim, 1.1), 0.95);
+    g.strokeLineShape(
+      new Phaser.Geom.Line(x - 10, y - bodyH - 4, x - 35, y - bodyH - 78),
+    );
+    g.fillStyle(shadeColor(ebony, 1.35), 1);
+    g.beginPath();
+    g.moveTo(x - 95, y - bodyH - 12);
+    g.lineTo(x - 45, y - bodyH - 88);
+    g.lineTo(x + 55, y - bodyH - 72);
+    g.lineTo(x + 85, y - bodyH - 8);
+    g.closePath();
+    g.fillPath();
+    // Soft inner lid wash (not strings — keeps the family-friendly storybook look).
+    g.fillStyle(PALETTE.moonlight, 0.12);
+    g.beginPath();
+    g.moveTo(x - 80, y - bodyH - 18);
+    g.lineTo(x - 40, y - bodyH - 78);
+    g.lineTo(x + 45, y - bodyH - 64);
+    g.lineTo(x + 70, y - bodyH - 14);
+    g.closePath();
+    g.fillPath();
+
+    // Fallboard / keyboard shelf.
+    const keyX = x + 42;
+    const keyY = y + 36;
+    drawIsoBox(g, {
+      x: keyX,
+      y: keyY,
+      width: 118,
+      depth: 52,
+      height: 14,
+      color: shadeColor(ebony, 0.9),
+    });
+
+    // Cream keybed as individual isometric key strips.
+    const keyCount = 11;
+    for (let i = 0; i < keyCount; i += 1) {
+      const t = (i - (keyCount - 1) / 2) / keyCount;
+      const kx = keyX + t * 96;
+      const ky = keyY - 4 - t * 22;
+      drawIsoBox(g, {
+        x: kx,
+        y: ky,
+        width: 12,
+        depth: 34,
+        height: 5,
+        color: PALETTE.pianoKeys,
+        topColor: shadeColor(PALETTE.pianoKeys, i % 2 === 0 ? 1.05 : 0.96),
+      });
+    }
+    // Black keys sit on the cream bed in the usual 2+3 pattern.
+    const blackPattern = [-4, -3, -1, 0, 1, 3, 4];
+    for (const slot of blackPattern) {
+      const t = slot / keyCount;
+      const kx = keyX + t * 96 + 4;
+      const ky = keyY - 14 - t * 22;
+      drawIsoBox(g, {
+        x: kx,
+        y: ky,
+        width: 8,
+        depth: 20,
+        height: 7,
+        color: PALETTE.pianoBlackKeys,
+        topColor: shadeColor(PALETTE.pianoBlackKeys, 1.25),
+      });
+    }
+
+    // Music desk + sheet.
+    drawIsoBox(g, {
+      x: keyX - 18,
+      y: keyY - 28,
+      width: 48,
+      depth: 12,
+      height: 26,
+      color: rim,
+    });
+    g.fillStyle(PALETTE.pianoKeys, 0.95);
+    g.beginPath();
+    g.moveTo(keyX - 30, keyY - 48);
+    g.lineTo(keyX - 8, keyY - 40);
+    g.lineTo(keyX - 4, keyY - 62);
+    g.lineTo(keyX - 26, keyY - 70);
+    g.closePath();
+    g.fillPath();
+    g.lineStyle(1, shadeColor(PALETTE.wood, 0.5), 0.7);
+    g.strokeLineShape(new Phaser.Geom.Line(keyX - 26, keyY - 58, keyX - 10, keyY - 50));
+    g.strokeLineShape(new Phaser.Geom.Line(keyX - 24, keyY - 52, keyX - 8, keyY - 44));
+
+    // Piano bench with four stubby legs (not a crate).
+    const bx = x + 28;
+    const by = y + 88;
+    for (const [ox, oy] of [
+      [-22, -8],
+      [18, -14],
+      [-16, 10],
+      [22, 6],
+    ] as const) {
+      drawIsoBox(g, {
+        x: bx + ox,
+        y: by + oy,
+        width: 8,
+        depth: 8,
+        height: 18,
+        color: shadeColor(PALETTE.wood, 0.85),
+      });
+    }
+    drawIsoBox(g, {
+      x: bx,
+      y: by - 16,
+      width: 78,
+      depth: 38,
+      height: 10,
+      color: PALETTE.wood,
+    });
+    fillIsoDiamond(
+      g,
+      { x: bx, y: by - 16, width: 70, depth: 32 },
+      shadeColor(PALETTE.sofa, 0.75),
+      0.9,
+      12,
+    );
+  }
+
   private drawProp(g: Phaser.GameObjects.Graphics, prop: LobbyPropDefinition): void {
     const { x, y } = prop;
 
@@ -344,35 +569,112 @@ export class LobbyEnvironment {
         break;
 
       case 'reception': {
-        // A key rack behind the counter is what separates a reception desk from
-        // any other block of furniture, so it is drawn first and stands tallest.
-        const rack = { x: x - 12, y: y - 74, width: 138, depth: 28, height: 76, color: PALETTE.wood };
+        // Key pigeonhole rack behind the desk — tall landmark for the front desk.
+        const rack = { x: x - 16, y: y - 78, width: 150, depth: 32, height: 82, color: PALETTE.wood };
         drawContactShadow(g, rack);
         drawIsoBox(g, rack);
-        // Many small pigeonholes, so the rack does not read as a windowed facade.
         drawFaceSlots(g, rack, 6, 3, shadeColor(PALETTE.wood, 0.42));
+        // Tiny brass key tags hanging in a few slots.
+        for (let tag = 0; tag < 4; tag += 1) {
+          const tx = rack.x - 48 + tag * 28;
+          const ty = rack.y - 18 + (tag % 2) * 12;
+          g.fillStyle(PALETTE.brass, 0.95);
+          g.fillCircle(tx, ty, 3);
+          g.fillRect(tx - 1, ty, 2, 10);
+        }
 
-        drawContactShadow(g, { x, y, width: 200, depth: 96 });
-        drawIsoBox(g, { x, y, width: 186, depth: 90, height: 58, color: PALETTE.reception });
-        // Overhanging counter top, then the guest bell and an open ledger on it.
-        drawIsoBox(g, { x, y: y - 58, width: 206, depth: 100, height: 9, color: PALETTE.woodLight });
-        drawIsoBox(g, { x: x + 54, y: y - 67, width: 24, depth: 16, height: 7, color: PALETTE.brass });
+        drawContactShadow(g, { x, y, width: 210, depth: 100 });
+        // Desk body with a front panel stripe so it reads as hotel reception.
+        drawIsoBox(g, { x, y, width: 196, depth: 94, height: 54, color: PALETTE.reception });
+        drawIsoBox(g, {
+          x,
+          y: y + 6,
+          width: 170,
+          depth: 18,
+          height: 28,
+          color: shadeColor(PALETTE.reception, 0.78),
+        });
+        // Overhanging counter top.
+        drawIsoBox(g, { x, y: y - 54, width: 214, depth: 104, height: 10, color: PALETTE.woodLight });
+
+        // Guest service bell (hauntable Object Nudge prop).
+        const bellX = x + 54;
+        const bellY = y - 64;
+        drawIsoBox(g, { x: bellX, y: bellY, width: 28, depth: 18, height: 6, color: shadeColor(PALETTE.brass, 0.75) });
         g.fillStyle(PALETTE.brass, 1);
-        g.fillCircle(x + 54, y - 81, 8);
-        drawIsoBox(g, { x: x - 46, y: y - 67, width: 46, depth: 28, height: 5, color: PALETTE.pianoKeys });
+        g.fillEllipse(bellX, bellY - 18, 22, 16);
+        g.fillStyle(shadeColor(PALETTE.brass, 1.2), 1);
+        g.fillCircle(bellX, bellY - 26, 4);
+        g.lineStyle(2, shadeColor(PALETTE.brass, 0.55), 0.9);
+        g.strokeCircle(bellX, bellY - 18, 9);
+
+        // Open guest ledger with a pen.
+        drawIsoBox(g, { x: x - 52, y: y - 64, width: 52, depth: 34, height: 5, color: PALETTE.pianoKeys });
+        g.lineStyle(1, shadeColor(PALETTE.wood, 0.55), 0.7);
+        g.strokeLineShape(new Phaser.Geom.Line(x - 64, y - 72, x - 40, y - 60));
+        g.strokeLineShape(new Phaser.Geom.Line(x - 64, y - 66, x - 40, y - 54));
+        g.lineStyle(2, PALETTE.brass, 0.9);
+        g.strokeLineShape(new Phaser.Geom.Line(x - 28, y - 70, x - 18, y - 58));
         break;
       }
 
-      case 'sofa':
-        drawContactShadow(g, { x, y, width: 186, depth: 92 });
-        drawIsoBox(g, { x, y, width: 176, depth: 84, height: 22, color: PALETTE.sofa });
-        // Backrest sits behind the seat so the silhouette reads as a couch.
-        drawIsoBox(g, { x: x - 12, y: y - 30, width: 150, depth: 46, height: 52, color: shadeColor(PALETTE.sofa, 0.86) });
-        drawIsoBox(g, { x: x - 68, y: y + 4, width: 38, depth: 30, height: 36, color: PALETTE.sofa });
-        drawIsoBox(g, { x: x + 68, y: y + 4, width: 38, depth: 30, height: 36, color: PALETTE.sofa });
-        fillIsoDiamond(g, { x: x - 30, y: y - 6, width: 62, depth: 30 }, shadeColor(PALETTE.sofa, 1.25), 0.9, 22);
-        fillIsoDiamond(g, { x: x + 26, y: y + 6, width: 62, depth: 30 }, shadeColor(PALETTE.sofa, 1.25), 0.9, 22);
+      case 'sofa': {
+        drawContactShadow(g, { x, y, width: 196, depth: 100 });
+        // Seat base + short skirt.
+        drawIsoBox(g, { x, y, width: 186, depth: 90, height: 26, color: PALETTE.sofa });
+        drawIsoBox(g, {
+          x,
+          y: y + 4,
+          width: 176,
+          depth: 78,
+          height: 10,
+          color: shadeColor(PALETTE.sofa, 0.78),
+        });
+        // Tall backrest with a wood trim rail along the top.
+        drawIsoBox(g, {
+          x: x - 10,
+          y: y - 34,
+          width: 160,
+          depth: 42,
+          height: 58,
+          color: shadeColor(PALETTE.sofa, 0.88),
+        });
+        drawIsoBox(g, {
+          x: x - 10,
+          y: y - 88,
+          width: 168,
+          depth: 18,
+          height: 8,
+          color: PALETTE.woodLight,
+        });
+        // Rolled arms.
+        drawIsoBox(g, { x: x - 78, y: y + 2, width: 42, depth: 36, height: 40, color: PALETTE.sofa });
+        drawIsoBox(g, { x: x + 78, y: y + 2, width: 42, depth: 36, height: 40, color: PALETTE.sofa });
+        // Seat cushions (two pillows) so it is clearly a sofa, not a crate.
+        fillIsoDiamond(
+          g,
+          { x: x - 34, y: y - 2, width: 72, depth: 34 },
+          shadeColor(PALETTE.sofa, 1.28),
+          0.95,
+          28,
+        );
+        fillIsoDiamond(
+          g,
+          { x: x + 34, y: y + 6, width: 72, depth: 34 },
+          shadeColor(PALETTE.sofa, 1.22),
+          0.95,
+          28,
+        );
+        // Throw pillow accent.
+        fillIsoDiamond(
+          g,
+          { x: x + 8, y: y - 18, width: 36, depth: 20 },
+          shadeColor(PALETTE.rugTrim, 0.92),
+          0.9,
+          44,
+        );
         break;
+      }
 
       case 'armchair':
         drawContactShadow(g, { x, y, width: 104, depth: 62 });
@@ -380,27 +682,42 @@ export class LobbyEnvironment {
         drawIsoBox(g, { x: x - 4, y: y - 18, width: 84, depth: 40, height: 44, color: shadeColor(PALETTE.chair, 0.9) });
         break;
 
-      case 'piano':
-        drawContactShadow(g, { x, y, width: 210, depth: 110 });
-        drawIsoBox(g, { x, y, width: 196, depth: 100, height: 72, color: PALETTE.piano });
-        // Raised lid, then the keyboard along the near-right edge.
-        fillIsoDiamond(g, { x: x - 10, y: y - 16, width: 176, depth: 88 }, shadeColor(PALETTE.piano, 1.35), 1, 84);
+      case 'fireplace': {
+        drawContactShadow(g, { x, y, width: 150, depth: 78 });
+        // Stone surround + mantel.
+        drawIsoBox(g, { x, y, width: 140, depth: 70, height: 70, color: shadeColor(PALETTE.wood, 0.7) });
         drawIsoBox(g, {
-          x: x + 38,
-          y: y + 26,
-          width: 96,
-          depth: 44,
-          height: 10,
-          color: PALETTE.pianoKeys,
-          topColor: PALETTE.pianoKeys,
+          x,
+          y: y - 70,
+          width: 158,
+          depth: 78,
+          height: 12,
+          color: PALETTE.woodLight,
         });
-        g.lineStyle(2, shadeColor(PALETTE.piano, 0.7), 0.9);
-        for (let key = -3; key <= 3; key += 1) {
-          g.strokeLineShape(
-            new Phaser.Geom.Line(x + 38 + key * 11, y + 16 - key * 5, x + 38 + key * 11 + 20, y + 26 - key * 5),
-          );
-        }
-        drawIsoBox(g, { x: x + 22, y: y + 74, width: 66, depth: 32, height: 26, color: PALETTE.wood });
+        // Dark hearth opening with a soft moonlit ember wash (never a real fire threat).
+        drawIsoBox(g, {
+          x,
+          y: y + 4,
+          width: 78,
+          depth: 36,
+          height: 42,
+          color: shadeColor(PALETTE.nightSky, 1.1),
+        });
+        g.fillStyle(PALETTE.lampWarm, 0.28);
+        g.fillEllipse(x, y - 8, 54, 28);
+        g.fillStyle(PALETTE.moonlight, 0.18);
+        g.fillEllipse(x + 4, y - 18, 40, 22);
+        // Brass andirons / grate hint.
+        g.lineStyle(3, PALETTE.brass, 0.8);
+        g.strokeLineShape(new Phaser.Geom.Line(x - 18, y + 10, x - 18, y - 22));
+        g.strokeLineShape(new Phaser.Geom.Line(x + 18, y + 10, x + 18, y - 22));
+        // Mantel clock ornament.
+        drawIsoBox(g, { x: x + 4, y: y - 86, width: 28, depth: 16, height: 18, color: PALETTE.brass });
+        break;
+      }
+
+      case 'piano':
+        this.drawGrandPiano(g, x, y);
         break;
 
       case 'table':

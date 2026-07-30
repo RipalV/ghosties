@@ -10,7 +10,7 @@ const ENTRANCE = { x: 920, y: 500 } as const;
 /** Different lobby path from Nora — shorter pauses, fewer POIs, snappier pacing. */
 const POI_COORDS = [
   { x: 1040, y: 460 },
-  { x: 1080, y: 420 },
+  { x: 1020, y: 440 },
   { x: 950, y: 520 },
 ] as const;
 
