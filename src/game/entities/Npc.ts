@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { NORA_CONTENT } from '../content/nora';
 import type { FearProfile, FearStage, ScareHistory } from '../fear/FearEngine';
 import { CharacterMarker } from '../visuals/CharacterMarker';
 import { HUD_LAYOUT, PALETTE } from '../visuals/lobbyTheme';
@@ -37,11 +38,7 @@ const TOP_HUD_CLEARANCE_CSS =
   HUD_LAYOUT.padding + Math.max(HUD_LAYOUT.chipHeight, HUD_LAYOUT.objectiveSize) + 8;
 
 export class Npc extends Phaser.GameObjects.Container {
-  readonly fearProfile: FearProfile = {
-    highFears: ['whisper'],
-    mediumFears: ['cold'],
-    ineffectiveFears: ['object'],
-  };
+  readonly fearProfile: FearProfile = NORA_CONTENT.fearProfile;
 
   readonly scareHistory: ScareHistory = { usesByCategory: {} };
   fear = 0;
@@ -206,6 +203,24 @@ export class Npc extends Phaser.GameObjects.Container {
       this.reactionBubble.setVisible(false);
       if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
       this.bodyShape.setFillStyle(PALETTE.noraSkin);
+    });
+  }
+
+  /** Family-friendly feedback when observation reveals a clue — held long enough to read. */
+  showObservationReaction(message: string): void {
+    this.reactionBubble.setText(message).setVisible(true);
+    this.face.setText('•o•');
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.04,
+      scaleY: 1.04,
+      yoyo: true,
+      duration: 120,
+    });
+
+    this.scene.time.delayedCall(4800, () => {
+      if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
+      this.reactionBubble.setVisible(false);
     });
   }
 }

@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
 import type { ScareAbility } from '../abilities/ScareAbility';
+import type { ClueDefinition } from '../observation/types';
 import { HUD_LAYOUT } from '../visuals/lobbyTheme';
-import { ActionButton } from './ActionButton';
-import { CharacterCard } from './CharacterCard';
+import { DomHudControls } from './DomHudControls';
 import { HudChip } from './HudChip';
-import { IconButton } from './IconButton';
 import { OffscreenIndicator } from './OffscreenIndicator';
 import { StatusToast } from './StatusToast';
 
@@ -19,13 +18,14 @@ export interface GameHudOptions {
   readonly objective: string;
   readonly onZoomIn: () => void;
   readonly onZoomOut: () => void;
+  readonly onObserve: () => void;
+  readonly onToggleClues: () => void;
 }
 
 /**
- * Floating HUD drawn by a dedicated UI camera: pill chips along the top edge, an
- * objective button in the top corner, and a ghost card with a square scare
- * action grid in the bottom corner. Nothing here reserves space from the play
- * area, and every element is repositioned from the live viewport size.
+ * Floating HUD: value chips and toasts in Phaser; corner controls, clue
+ * review, and the action cluster as HTML overlays so layout stays aligned in
+ * fullscreen and under device-pixel canvas scaling.
  */
 export class GameHud {
   /** Everything the UI camera draws; the world camera ignores this container. */
@@ -34,20 +34,20 @@ export class GameHud {
   private readonly scoreChip: HudChip;
   private readonly energyChip: HudChip;
   private readonly fearChip: HudChip;
-  private readonly objectiveButton: IconButton;
-  private readonly zoomInButton: IconButton;
-  private readonly zoomOutButton: IconButton;
-  private readonly card: CharacterCard;
   private readonly toast: StatusToast;
   private readonly npcIndicator: OffscreenIndicator;
-  private readonly actionButtons: ActionButton[] = [];
+  private readonly domHud: DomHudControls;
   private readonly blockedRegions: Phaser.Geom.Rectangle[] = [];
+  private readonly hudParent: HTMLElement;
 
   private viewWidth = 0;
   private viewHeight = 0;
+  private hasDiscoveredClues = false;
+  private actionCount = 0;
+  private actionEnergyCosts: number[] = [];
 
   constructor(
-    private readonly scene: Phaser.Scene,
+    scene: Phaser.Scene,
     private readonly uiScale: number,
     private readonly options: GameHudOptions,
   ) {
@@ -57,46 +57,36 @@ export class GameHud {
     this.energyChip = new HudChip(scene, '✨', '100', uiScale);
     this.fearChip = new HudChip(scene, '😮', 'CALM 0', uiScale);
 
-    const objectiveSize = HUD_LAYOUT.objectiveSize * uiScale;
-    this.objectiveButton = new IconButton(scene, '📋', objectiveSize, uiScale, () => {
-      this.objectiveButton.setNotification(false);
-      this.setStatus(this.options.objective);
-    });
-    this.objectiveButton.setNotification(true);
-
-    const zoomSize = HUD_LAYOUT.zoomButtonSize * uiScale;
-    this.zoomInButton = new IconButton(scene, '＋', zoomSize, uiScale, options.onZoomIn);
-    this.zoomOutButton = new IconButton(scene, '－', zoomSize, uiScale, options.onZoomOut);
-
-    this.card = new CharacterCard(scene, '👻', 'Ghost', uiScale);
     this.toast = new StatusToast(scene, uiScale);
     this.npcIndicator = new OffscreenIndicator(scene, 'Nora', uiScale);
 
-    this.root.add([
-      this.scoreChip,
-      this.energyChip,
-      this.fearChip,
-      this.objectiveButton,
-      this.zoomInButton,
-      this.zoomOutButton,
-      this.card,
-      this.toast,
-      this.npcIndicator,
-    ]);
+    const parent = scene.game.canvas.parentElement;
+    if (!parent) throw new Error('Missing game parent for DOM HUD controls.');
+    this.hudParent = parent;
+
+    this.domHud = new DomHudControls(parent, {
+      onObjective: () => {
+        this.domHud.setObjectiveNotification(false);
+        this.setStatus(this.options.objective);
+      },
+      onToggleClues: options.onToggleClues,
+      onZoomIn: options.onZoomIn,
+      onZoomOut: options.onZoomOut,
+      onObserve: options.onObserve,
+    });
+
+    this.root.add([this.scoreChip, this.energyChip, this.fearChip, this.toast, this.npcIndicator]);
+
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.domHud.destroy());
   }
 
   createAbilityControls(
     abilities: readonly ScareAbility[],
     onActivate: (ability: ScareAbility) => void,
   ): void {
-    abilities.forEach((ability, index) => {
-      const button = new ActionButton(this.scene, ability, String(index + 1), this.uiScale, () =>
-        onActivate(ability),
-      );
-      this.actionButtons.push(button);
-      this.root.add(button);
-    });
-
+    this.actionCount = abilities.length;
+    this.actionEnergyCosts = abilities.map((ability) => ability.energyCost);
+    this.domHud.createActionControls(abilities, onActivate);
     if (this.viewWidth > 0) this.layout(this.viewWidth, this.viewHeight);
   }
 
@@ -105,26 +95,13 @@ export class GameHud {
     this.viewHeight = height;
 
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
-    const objectiveSize = HUD_LAYOUT.objectiveSize * s;
+    const edgeInsetBottom = this.readEdgeInsetBottom();
     const actionSize = HUD_LAYOUT.actionSize * s;
-    const zoomSize = HUD_LAYOUT.zoomButtonSize * s;
 
-    this.objectiveButton.setPosition(pad + objectiveSize / 2, pad + objectiveSize / 2);
     this.layoutChips();
 
-    // Bottom corner: ghost card, then the square scare grid beside it.
-    const cardRadius = this.card.radius;
-    const cardCenterY = height - pad - Math.max(cardRadius, actionSize / 2);
-    this.card.setPosition(pad + cardRadius, cardCenterY);
-
-    const gridStartX = pad + cardRadius * 2 + 14 * s + actionSize / 2;
-    this.actionButtons.forEach((button, index) => {
-      button.setPosition(gridStartX + index * (actionSize + HUD_LAYOUT.actionGap * s), cardCenterY);
-    });
-
-    this.zoomInButton.setPosition(width - pad - zoomSize / 2, height / 2 - zoomSize * 0.6);
-    this.zoomOutButton.setPosition(width - pad - zoomSize / 2, height / 2 + zoomSize * 0.6);
+    const cardRadius = HUD_LAYOUT.cardRadius * s;
+    const cardCenterY = this.viewHeight - edgeInsetBottom - Math.max(cardRadius, actionSize / 2);
 
     this.toast.setWrapWidth(Math.max(200 * s, width * HUD_LAYOUT.toastMaxWidthFraction));
     this.toast.setPosition(width / 2, cardCenterY - actionSize / 2 - 26 * s);
@@ -132,7 +109,10 @@ export class GameHud {
     this.refreshBlockedRegions();
   }
 
-  /** Screen regions owned by the HUD, so world taps never fight a control. */
+  handlePointerDown(x: number, y: number): boolean {
+    return this.blocksPointer(x, y);
+  }
+
   blocksPointer(x: number, y: number): boolean {
     return this.blockedRegions.some((region) => region.contains(x, y));
   }
@@ -141,19 +121,51 @@ export class GameHud {
     this.toast.show(message);
   }
 
+  setClueStatus(message: string): void {
+    this.toast.showClue(message);
+  }
+
   setObjective(needsAttention: boolean): void {
-    this.objectiveButton.setNotification(needsAttention);
+    this.domHud.setObjectiveNotification(needsAttention);
   }
 
   setZoomAvailability(canZoomIn: boolean, canZoomOut: boolean): void {
-    this.zoomInButton.setEnabled(canZoomIn);
-    this.zoomOutButton.setEnabled(canZoomOut);
+    this.domHud.setZoomAvailability(canZoomIn, canZoomOut);
+  }
+
+  setObserveState(inRange: boolean, observing: boolean, progress: number): void {
+    this.domHud.setObserveState(inRange, observing, progress);
+  }
+
+  setClueEntries(clues: readonly ClueDefinition[], discoveredIds: readonly string[]): void {
+    this.domHud.setClueEntries(
+      clues.map((clue) => ({
+        id: clue.id,
+        category: clue.category,
+        text: clue.text,
+        discovered: discoveredIds.includes(clue.id),
+      })),
+    );
+    this.hasDiscoveredClues = discoveredIds.length > 0;
+    this.domHud.setCluesNotification(this.hasDiscoveredClues && !this.domHud.isCluePanelOpen());
+  }
+
+  toggleCluePanel(): boolean {
+    const next = !this.domHud.isCluePanelOpen();
+    this.domHud.setCluePanelOpen(next);
+    this.domHud.setCluesNotification(this.hasDiscoveredClues && !next);
+    this.scheduleBlockedRegionRefresh();
+    return next;
+  }
+
+  setCluePanelOpen(open: boolean): void {
+    this.domHud.setCluePanelOpen(open);
+    this.domHud.setCluesNotification(this.hasDiscoveredClues && !open);
+    this.scheduleBlockedRegionRefresh();
   }
 
   showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
-    const inset = HUD_LAYOUT.padding * this.uiScale + 20 * this.uiScale;
-    // Nora is usually to one side, so the right edge is where the indicator
-    // parks most often — the zoom column is kept clear of it.
+    const inset = this.readEdgeInsetX() + 20 * this.uiScale;
     const zoomColumn = (HUD_LAYOUT.zoomButtonSize + HUD_LAYOUT.padding) * this.uiScale;
     this.npcIndicator.pointAt(
       { x: this.viewWidth / 2, y: this.viewHeight / 2 },
@@ -177,8 +189,8 @@ export class GameHud {
     this.energyChip.setValue(String(snapshot.energy));
     this.fearChip.setValue(`${snapshot.stage.toUpperCase()} ${snapshot.fear}`);
 
-    this.actionButtons.forEach((button) => {
-      button.setAffordable(snapshot.energy >= button.ability.energyCost);
+    this.actionEnergyCosts.forEach((cost, index) => {
+      this.domHud.setActionAffordable(index, snapshot.energy >= cost);
     });
 
     this.layoutChips();
@@ -189,48 +201,74 @@ export class GameHud {
     if (this.viewWidth === 0) return;
 
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
+    const edgeInsetTop = this.readEdgeInsetTop();
+    const edgeInsetX = this.readEdgeInsetX();
     const gap = HUD_LAYOUT.chipGap * s;
-    const startX = pad + HUD_LAYOUT.objectiveSize * s + gap;
-    const centerY = pad + HUD_LAYOUT.chipHeight * s / 2;
+    const objectiveSize = HUD_LAYOUT.objectiveSize * s;
+    const centerY = edgeInsetTop + objectiveSize / 2;
+
+    const chips = [this.scoreChip, this.energyChip, this.fearChip];
+    const totalWidth =
+      chips.reduce((sum, chip) => sum + chip.chipWidth, 0) + gap * Math.max(0, chips.length - 1);
+
+    const leftClear = edgeInsetX + objectiveSize * 2 + gap * 2;
+    const rightClear = edgeInsetX + HUD_LAYOUT.zoomButtonSize * s + gap;
+    let startX = (this.viewWidth - totalWidth) / 2;
+    if (startX < leftClear) startX = leftClear;
+    if (startX + totalWidth > this.viewWidth - rightClear) {
+      startX = Math.max(leftClear, this.viewWidth - rightClear - totalWidth);
+    }
 
     let cursorX = startX;
-    for (const chip of [this.scoreChip, this.energyChip, this.fearChip]) {
+    for (const chip of chips) {
       chip.setPosition(cursorX, centerY);
-      cursorX += chip.width + gap;
+      cursorX += chip.chipWidth + gap;
     }
   }
 
   private refreshBlockedRegions(): void {
     const s = this.uiScale;
-    const pad = HUD_LAYOUT.padding * s;
+    const edgeInsetX = this.readEdgeInsetX();
+    const edgeInsetBottom = this.readEdgeInsetBottom();
     const touchPad = 6 * s;
 
     this.blockedRegions.length = 0;
 
-    const chipsWidth = this.scoreChip.width + this.energyChip.width + this.fearChip.width + HUD_LAYOUT.chipGap * s * 3;
+    this.blockedRegions.push(this.domRectToGame(this.domHud.topLeftCluster, touchPad));
+
+    const chipsWidth =
+      this.scoreChip.chipWidth +
+      this.energyChip.chipWidth +
+      this.fearChip.chipWidth +
+      HUD_LAYOUT.chipGap * s * Math.max(0, 2);
+    const topHeight =
+      this.readEdgeInsetTop() + Math.max(HUD_LAYOUT.objectiveSize, HUD_LAYOUT.chipHeight) * s + touchPad;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(
+        this.scoreChip.x - touchPad,
         0,
-        0,
-        pad + HUD_LAYOUT.objectiveSize * s + chipsWidth + touchPad,
-        pad + Math.max(HUD_LAYOUT.objectiveSize, HUD_LAYOUT.chipHeight) * s + touchPad,
+        chipsWidth + touchPad * 2,
+        topHeight,
       ),
     );
 
-    const bottomHeight = Math.max(HUD_LAYOUT.actionSize, HUD_LAYOUT.cardRadius * 2) * s + pad + touchPad;
+    const cardRadius = HUD_LAYOUT.cardRadius * s;
+    const bottomHeight =
+      Math.max(HUD_LAYOUT.actionSize, HUD_LAYOUT.cardRadius * 2) * s + edgeInsetBottom + touchPad + 18 * s;
     const bottomWidth =
-      pad +
-      this.card.radius * 2 +
+      edgeInsetX +
+      cardRadius * 2 +
       14 * s +
-      this.actionButtons.length * HUD_LAYOUT.actionSize * s +
-      Math.max(0, this.actionButtons.length - 1) * HUD_LAYOUT.actionGap * s +
+      HUD_LAYOUT.actionSize * s +
+      HUD_LAYOUT.observeActionGap * s +
+      this.actionCount * HUD_LAYOUT.actionSize * s +
+      Math.max(0, this.actionCount - 1) * HUD_LAYOUT.actionGap * s +
       touchPad;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(0, this.viewHeight - bottomHeight, bottomWidth, bottomHeight),
     );
 
-    const zoomWidth = HUD_LAYOUT.zoomButtonSize * s + pad + touchPad;
+    const zoomWidth = HUD_LAYOUT.zoomButtonSize * s + edgeInsetX + touchPad;
     const zoomHeight = HUD_LAYOUT.zoomButtonSize * s * 2.4;
     this.blockedRegions.push(
       new Phaser.Geom.Rectangle(
@@ -240,5 +278,49 @@ export class GameHud {
         zoomHeight,
       ),
     );
+  }
+
+  /** Re-measure DOM HUD bounds after the clue panel toggles or resizes. */
+  private scheduleBlockedRegionRefresh(): void {
+    this.refreshBlockedRegions();
+    requestAnimationFrame(() => {
+      this.refreshBlockedRegions();
+    });
+  }
+
+  private domRectToGame(element: HTMLElement, pad = 0): Phaser.Geom.Rectangle {
+    const canvas = this.hudParent.querySelector('canvas');
+    if (!canvas) return new Phaser.Geom.Rectangle(0, 0, 0, 0);
+
+    const elementRect = element.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / canvasRect.width;
+    const scaleY = canvas.height / canvasRect.height;
+
+    const x = (elementRect.left - canvasRect.left) * scaleX - pad;
+    const y = (elementRect.top - canvasRect.top) * scaleY - pad;
+    const width = elementRect.width * scaleX + pad * 2;
+    const height = elementRect.height * scaleY + pad * 2;
+
+    return new Phaser.Geom.Rectangle(x, y, width, height);
+  }
+
+  private readEdgeInsetTop(): number {
+    return this.readCssLength('--hud-edge-inset-top', HUD_LAYOUT.padding);
+  }
+
+  private readEdgeInsetX(): number {
+    return this.readCssLength('--hud-edge-inset-x', HUD_LAYOUT.padding);
+  }
+
+  private readEdgeInsetBottom(): number {
+    return this.readCssLength('--hud-edge-inset-bottom', HUD_LAYOUT.padding);
+  }
+
+  private readCssLength(varName: string, fallback: number): number {
+    const raw = getComputedStyle(this.hudParent).getPropertyValue(varName).trim();
+    const cssPx = raw ? Number.parseFloat(raw) : Number.NaN;
+    const inset = Number.isFinite(cssPx) ? cssPx : fallback;
+    return inset * this.uiScale;
   }
 }

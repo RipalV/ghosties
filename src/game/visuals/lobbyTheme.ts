@@ -134,6 +134,8 @@ export const HUD_LAYOUT = {
   cardRadius: 26,
   actionSize: 60,
   actionGap: 10,
+  /** Extra space between Observe and the scare grid so hit targets do not overlap. */
+  observeActionGap: 18,
   zoomButtonSize: 44,
   minTouchPx: 44,
   toastMaxWidthFraction: 0.6,
