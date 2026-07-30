@@ -4,6 +4,7 @@ import {
   getVisitorDefinition,
   type VisitorDefinition,
 } from '../content/visitorRegistry';
+import { noraVisitForIndex } from '../content/noraVisit';
 import { Ghost } from '../entities/Ghost';
 import { Npc, DEPARTURE_SPEED_MULTIPLIER, NPC_MAX_FEAR } from '../entities/Npc';
 import { getFearStage, resolveScare } from '../fear/FearEngine';
@@ -272,6 +273,9 @@ export class GameScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     const tutorialPromptOpen = this.hud.isTutorialPromptOpen();
+    /** Guided OK/Skip prompts pause haunt simulation until dismissed. */
+    const simDelta = tutorialPromptOpen ? 0 : delta;
+
     this.ghost.setKeyboardDirection(
       tutorialPromptOpen
         ? 0
@@ -280,15 +284,17 @@ export class GameScene extends Phaser.Scene {
         ? 0
         : Number(this.keys.down.isDown) - Number(this.keys.up.isDown),
     );
-    this.ghost.update(delta);
-    this.updateHauntingSession(delta);
-    this.updateVisitorRoute(time, delta);
-    this.ambience.update(delta);
-    this.updatePinchZoom();
+    this.ghost.update(simDelta);
+    this.updateHauntingSession(simDelta);
+    this.updateVisitorRoute(time, simDelta);
+    this.ambience.update(simDelta);
+    if (!tutorialPromptOpen) {
+      this.updatePinchZoom();
+    }
     this.updateNpcIndicator();
-    this.updateObservation(delta);
-    this.updateScareCast(delta);
-    this.updateTutorialCoaching(delta);
+    this.updateObservation(simDelta);
+    this.updateScareCast(simDelta);
+    this.updateTutorialCoaching(simDelta);
 
     this.abilityKeys.forEach((key, index) => {
       if (!tutorialPromptOpen && Phaser.Input.Keyboard.JustDown(key)) {
@@ -306,6 +312,9 @@ export class GameScene extends Phaser.Scene {
     const definition = getVisitorDefinition(id);
     if (!definition) {
       throw new Error(`Unknown visitor id: ${id}`);
+    }
+    if (id === 'nora') {
+      return { ...definition, visit: noraVisitForIndex(this.visitIndex) };
     }
     return definition;
   }

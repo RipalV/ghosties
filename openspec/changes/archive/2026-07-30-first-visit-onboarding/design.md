@@ -21,7 +21,7 @@ Ghosties already has a two-visitor haunt loop and a partially implemented first-
 
 **Non-Goals:**
 
-- Pausing Nora’s route timing permanently (prompts briefly block player input only while open).
+- Pausing Nora’s route timing permanently (prompts briefly pause simulation only while open).
 - Teaching results / Next visit as dedicated guided steps (results UI already explains itself).
 - Persistence across reloads; accounts; new visitors/abilities; fear spoiling.
 
@@ -67,9 +67,14 @@ Ghosties already has a two-visitor haunt loop and a partially implemented first-
 - **Decision:** Onboarding never mutates fear/score/energy/route/cast maths. Full sequence only when `visitIndex === 0` / Nora and session not finished.
 - **Why:** Existing acceptance criteria.
 
+### 8. Longer visit pauses for first-session learning
+
+- **Decision:** Increase default visit pacing margins (`REPOSITION_BUFFER_MS`, `COMFORT_MARGIN_MS`, and Milo overrides) for all visits. Add `FIRST_VISIT_COMFORT_BONUS_MS` on Nora’s **first session visit only** (`visitIndex === 0`) via `noraVisitForIndex` — ~87 s standard Nora/Milo visits, ~99 s first Nora visit.
+- **Why:** Playtesting with OK/Skip prompts showed routes finished before new players finished the taught loop; the first visit needs the most breathing room.
+
 ## Risks / Trade-offs
 
-- **[Risk] Nora walks while prompts are open** → Mitigation: keep copy short; player input locked while prompt open; do not pause route (fun chaos OK).
+- **[Risk] Nora walks while prompts are open** → Mitigation: keep copy short; player input locked while prompt open; **haunt simulation pauses** (visitor route, timers, observe/cast progress) until OK or Skip.
 - **[Risk] “Successful scare” definition unclear** → Mitigation: define as cast resolve with applied exposure (not zero/miss); ineffective-but-exposed still counts as “landed” for teaching the loop.
 - **[Risk] Player skips welcome** → Mitigation: Skip ends all guided help; coaching still available.
 - **[Risk] Clue panel already open when observe completes** → Mitigation: if panel open, still require a toggle/open event or treat already-open as satisfying after acknowledge—prefer requiring an open/toggle so the control is taught.

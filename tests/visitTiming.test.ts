@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { SCARE_CAST_DURATION_MS } from '../src/game/scareCast/scareCastSession';
 import { NORA_CONTENT } from '../src/game/content/nora';
-import { VISIT_PACING } from '../src/game/content/noraVisit';
+import { VISIT_PACING, FIRST_VISIT_PACING, noraVisitForIndex } from '../src/game/content/noraVisit';
 import {
+  FIRST_VISIT_COMFORT_BONUS_MS,
   REPOSITION_BUFFER_MS,
   TARGET_OBSERVATIONS,
   TARGET_SCARES,
@@ -40,15 +41,15 @@ describe('visit pacing maths', () => {
     expect(pacing.sequentialActionMs).toBe(3 * 8000 + 5 * SCARE_CAST_DURATION_MS);
     expect(pacing.transitionBufferMs).toBe((TARGET_OBSERVATIONS + TARGET_SCARES - 1) * REPOSITION_BUFFER_MS);
     expect(pacing.travelMs).toBeGreaterThan(12_000);
-    expect(pacing.totalPauseMs).toBeGreaterThan(50_000);
-    expect(pacing.minimumActiveHauntingMs).toBeGreaterThanOrEqual(63_000);
+    expect(pacing.totalPauseMs).toBeGreaterThan(70_000);
+    expect(pacing.minimumActiveHauntingMs).toBeGreaterThanOrEqual(85_000);
     expect(pacing.poiPauseMs.reduce((sum, pause) => sum + pause, 0)).toBe(pacing.totalPauseMs);
-    expect(pacing.poiPauseMs.every((pause) => pause >= 11_000)).toBe(true);
+    expect(pacing.poiPauseMs.every((pause) => pause >= 16_000)).toBe(true);
   });
 
   it('matches exported Nora visit pacing constants', () => {
     expect(VISIT_PACING.poiPauseMs).toHaveLength(4);
-    expect(VISIT_PACING.minimumActiveHauntingMs).toBeGreaterThanOrEqual(63_000);
+    expect(VISIT_PACING.minimumActiveHauntingMs).toBeGreaterThanOrEqual(85_000);
   });
 
   it('estimates travel from entrance through POIs', () => {
@@ -75,5 +76,17 @@ describe('visit pacing maths', () => {
     });
     const baseline = defaultNoraVisitPacing(ENTRANCE, POIS, 8000);
     expect(longer.totalPauseMs).toBeGreaterThan(baseline.totalPauseMs);
+  });
+
+  it('gives the first Nora visit extra pause budget for onboarding', () => {
+    expect(FIRST_VISIT_PACING.minimumActiveHauntingMs).toBeGreaterThan(
+      VISIT_PACING.minimumActiveHauntingMs,
+    );
+    expect(
+      FIRST_VISIT_PACING.minimumActiveHauntingMs - VISIT_PACING.minimumActiveHauntingMs,
+    ).toBe(FIRST_VISIT_COMFORT_BONUS_MS);
+    expect(noraVisitForIndex(0).pointsOfInterest[0].pauseMs).toBeGreaterThan(
+      noraVisitForIndex(2).pointsOfInterest[0].pauseMs,
+    );
   });
 });

@@ -9,7 +9,7 @@
 
 - [x] 2.1 Show welcome prompt when the lobby is ready (before Nora); show guest-motive prompt on first-visit arrival; show observe prompt when Nora is targetable (highlight Observe after OK)
 - [x] 2.2 Advance to clues prompt on observe-with-clue (highlight 🧩); advance to scare prompt on clues opened (highlight scare grid); advance to repeat prompt on successful scare (exposed resolve)
-- [x] 2.3 Preserve Skip help + OK (≥44 CSS px), input lock while prompt open, cleanup on departure/skip/next visit, session flag across reset
+- [x] 2.3 Preserve Skip help + OK (≥44 CSS px), input lock and **game pause** while prompt open, cleanup on departure/skip/next visit, session flag across reset
 - [x] 2.4 Update README for the six-step OK/Skip prompt flow
 
 ## 3. Tests and validation
@@ -19,5 +19,9 @@
 
 ## 4. Playtest and preview
 
-- [ ] 4.1 Playtest desktop + landscape mobile: welcome → motive → observe → clues → scare → repeat, Skip path, later visits without full sequence
-- [ ] 4.2 Open/verify Azure Static Web Apps PR preview for acceptance review
+- [x] 4.1 Playtest desktop + landscape mobile: welcome → motive → observe → clues → scare → repeat, Skip path, later visits without full sequence
+- [x] 4.2 Open/verify Azure Static Web Apps PR preview for acceptance review
+
+## 5. Visit pacing (first-session comfort)
+
+- [x] 5.1 Increase standard visit POI pause budgets (~87 s Nora repeat, ~69 s Milo) and add first-Nora visit bonus (~99 s) for guided onboarding

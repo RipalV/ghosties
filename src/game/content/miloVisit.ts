@@ -22,8 +22,8 @@ const MILO_PACING = buildVisitPacing({
   npcSpeed: MOVEMENT.npcSpeed,
   entrance: ENTRANCE,
   pointsOfInterest: POI_COORDS,
-  repositionBufferMs: 1500,
-  comfortMarginMs: 3500,
+  repositionBufferMs: 2600,
+  comfortMarginMs: 11000,
 });
 
 /** Authored Milo visit route — separate from fear/clue content in milo.ts. */

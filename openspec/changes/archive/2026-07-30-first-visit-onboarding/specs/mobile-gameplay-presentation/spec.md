@@ -1,13 +1,20 @@
 ## ADDED Requirements
 
 ### Requirement: Tutorial prompt presentation on mobile
-Guided onboarding SHALL use centered OK/Skip prompts that remain readable on landscape phones, communicate with text and icons rather than colour alone, avoid rapid flashing, respect safe-area insets, and keep OK and Skip help at least 44 CSS pixels. While a guided prompt is open, player movement and haunt controls MAY be briefly locked until OK or Skip. After OK, prompts SHALL NOT permanently cover movement, Observe, or scare controls. Contextual coaching hints MAY use a compact non-blocking banner after guided mode ends.
+Guided onboarding SHALL use centered OK/Skip prompts that remain readable on landscape phones, communicate with text and icons rather than colour alone, avoid rapid flashing, respect safe-area insets, and keep OK and Skip help at least 44 CSS pixels. While a guided prompt is open, player movement and haunt controls SHALL be locked and haunt simulation (visitor route, session timers, observation, and scare casts) SHALL pause until OK or Skip. After OK, prompts SHALL NOT permanently cover movement, Observe, or scare controls. Contextual coaching hints MAY use a compact non-blocking banner after guided mode ends.
 
 #### Scenario: Guided prompt on landscape
 - **WHEN** a guided onboarding prompt is shown on a landscape mobile viewport
 - **THEN** the instruction text is readable
 - **AND** OK and Skip help are each at least 44 CSS px
 - **AND** the prompt uses short mischievous copy
+
+#### Scenario: Game pauses while prompt is open
+- **GIVEN** a guided onboarding prompt is visible
+- **WHEN** the player has not yet chosen OK or Skip help
+- **THEN** the visitor route and haunt timers do not advance
+- **AND** observation and scare-cast progress do not advance
+- **AND** the ghost does not move from player input
 
 #### Scenario: Highlight after prompt dismissed
 - **GIVEN** the player acknowledged the Observe-step prompt with OK
