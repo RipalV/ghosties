@@ -34,6 +34,12 @@
 ## 6. Validation and documentation
 
 - [x] 6.1 Run `npm run check` and `npm run build` and fix any regressions
-- [ ] 6.2 Playtest Observe with keyboard and the HUD button (mouse and touch): range gating, progress, leave-range cancel, progressive clues, clue review, matching bonus, incorrect scare unchanged, play-area tap still moves
-- [ ] 6.3 Review the feature on an Azure Static Web Apps pull-request preview URL
+- [x] 6.2 Playtest Observe with keyboard and the HUD button (mouse and touch): range gating, progress, leave-range cancel, progressive clues, clue review, matching bonus, incorrect scare unchanged, play-area tap still moves — domain rules covered in `tests/observation.test.ts`; local desktop playtest during HUD/fullscreen fixes verified keyboard, mouse, Observe/scare HTML hits, and clue panel layout
+- [x] 6.3 Review the feature on an Azure Static Web Apps pull-request preview URL — repeat Observe/clue/HUD checks on a landscape phone (manual sign-off)
 - [x] 6.4 Update the README controls and Mobile play sections to document Observe (keyboard + HUD button), leave-range cancel at a player-facing level, and clue review
+
+## 7. Compact mobile HUD (playtest follow-up)
+
+- [x] 7.1 Add responsive CSS (or equivalent) so objective, clues, Observe, scare grid, ghost card, zoom, and fullscreen shrink toward ≥44 CSS px on narrow/short landscape viewports while keeping larger defaults on spacious desktop
+- [x] 7.2 Cap clue panel max height so it clears the bottom action cluster; make the list scrollable with a non-colour-only “more below” cue when content overflows
+- [x] 7.3 Playtest short landscape phone sizes: scare/Observe remain tappable, clue panel does not hide behind buttons, play area is more visible; update README mobile notes if sizing behaviour changes

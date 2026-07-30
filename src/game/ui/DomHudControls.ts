@@ -46,7 +46,9 @@ export class DomHudControls {
   private readonly objectiveBadge: HTMLElement;
   private readonly cluesBadge: HTMLElement;
   private readonly cluePanel: HTMLElement;
+  private readonly clueScrollWrap: HTMLElement;
   private readonly clueList: HTMLElement;
+  private readonly clueMoreCue: HTMLElement;
   private readonly observeButton: HTMLButtonElement;
   private readonly observeRangeMark: HTMLElement;
   private readonly observeProgressLabel: HTMLElement;
@@ -84,9 +86,17 @@ export class DomHudControls {
     const clueTitle = document.createElement('h2');
     clueTitle.className = 'dom-clue-panel-title';
     clueTitle.textContent = 'Clues';
+    this.clueScrollWrap = document.createElement('div');
+    this.clueScrollWrap.className = 'dom-clue-panel-scroll';
     this.clueList = document.createElement('ul');
     this.clueList.className = 'dom-clue-panel-list';
-    this.cluePanel.append(clueTitle, this.clueList);
+    this.clueMoreCue = document.createElement('div');
+    this.clueMoreCue.className = 'dom-clue-panel-more-cue';
+    this.clueMoreCue.textContent = '▼ More below';
+    this.clueScrollWrap.append(this.clueList, this.clueMoreCue);
+    this.cluePanel.append(clueTitle, this.clueScrollWrap);
+    this.clueList.addEventListener('scroll', () => this.syncCluePanelScroll());
+    window.addEventListener('resize', this.handleResize);
 
     this.topLeftCluster.append(topButtons, this.cluePanel);
 
@@ -222,11 +232,15 @@ export class DomHudControls {
       row.append(glyph, text);
       this.clueList.append(row);
     });
+    this.syncCluePanelScroll();
   }
 
   setCluePanelOpen(open: boolean): void {
     this.cluePanelOpen = open;
     this.cluePanel.hidden = !open;
+    if (open) {
+      requestAnimationFrame(() => this.syncCluePanelScroll());
+    }
   }
 
   isCluePanelOpen(): boolean {
@@ -270,7 +284,22 @@ export class DomHudControls {
   }
 
   destroy(): void {
+    window.removeEventListener('resize', this.handleResize);
     this.root.remove();
+  }
+
+  private readonly handleResize = (): void => {
+    if (this.cluePanelOpen) {
+      this.syncCluePanelScroll();
+    }
+  };
+
+  private syncCluePanelScroll(): void {
+    const list = this.clueList;
+    const overflow = list.scrollHeight > list.clientHeight + 1;
+    this.clueScrollWrap.dataset.overflow = overflow ? 'true' : 'false';
+    const atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 2;
+    this.clueScrollWrap.dataset.scrolledEnd = atEnd ? 'true' : 'false';
   }
 
   private flashButton(button: HTMLButtonElement): void {
