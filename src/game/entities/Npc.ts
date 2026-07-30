@@ -54,6 +54,8 @@ export class Npc extends Phaser.GameObjects.Container {
   private moveSpeed = MOVEMENT.npcSpeed;
   private pausedUntil = 0;
   private wasMoving = false;
+  private scareCastReactionActive = false;
+  private scareCastTween?: Phaser.Tweens.Tween;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -182,6 +184,7 @@ export class Npc extends Phaser.GameObjects.Container {
   }
 
   react(message: string, stage: FearStage, failed: boolean): void {
+    this.setScareCastReaction(false);
     this.stage = stage;
     this.marker.setLabel(STAGE_WORDS[stage]);
     this.reactionBubble.setText(message).setVisible(true);
@@ -222,5 +225,39 @@ export class Npc extends Phaser.GameObjects.Container {
       if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
       this.reactionBubble.setVisible(false);
     });
+  }
+
+  /** Mild mid-cast cue while Nora is still in range of the casting scare. */
+  setScareCastReaction(active: boolean): void {
+    if (active === this.scareCastReactionActive) return;
+
+    if (active) {
+      if (this.scene.time.now < this.pausedUntil) return;
+      this.scareCastReactionActive = true;
+      this.reactionBubble.setText('Something spooky…').setVisible(true);
+      this.face.setText('•~•');
+      this.scareCastTween?.stop();
+      this.scareCastTween = this.scene.tweens.add({
+        targets: this,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        yoyo: true,
+        duration: 320,
+        repeat: -1,
+        ease: 'Sine.InOut',
+      });
+      return;
+    }
+
+    this.scareCastReactionActive = false;
+    this.scareCastTween?.stop();
+    this.scareCastTween = undefined;
+    if (this.scene.time.now >= this.pausedUntil) {
+      this.reactionBubble.setVisible(false);
+      if (this.stage !== 'possessed') this.face.setText(FACE_BY_STAGE[this.stage]);
+      if (!this.wasMoving) {
+        this.setScale(1);
+      }
+    }
   }
 }

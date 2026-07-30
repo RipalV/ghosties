@@ -27,6 +27,8 @@ export interface DomCluePanelEntry {
 interface ActionButtonElements {
   readonly button: HTMLButtonElement;
   readonly lock: HTMLElement;
+  readonly progressLabel: HTMLElement;
+  readonly progressRing: HTMLElement;
 }
 
 const CATEGORY_GLYPH: Record<ClueCategory, string> = {
@@ -198,7 +200,16 @@ export class DomHudControls {
       lock.className = 'dom-hud-action-lock';
       lock.textContent = '🚫';
       lock.hidden = true;
-      button.append(lock);
+
+      const progressLabel = document.createElement('span');
+      progressLabel.className = 'dom-hud-action-progress';
+      progressLabel.hidden = true;
+
+      const progressRing = document.createElement('span');
+      progressRing.className = 'dom-hud-action-ring';
+      progressRing.setAttribute('aria-hidden', 'true');
+
+      button.append(lock, progressLabel, progressRing);
 
       bindPress(button, () => {
         this.flashButton(button);
@@ -206,7 +217,7 @@ export class DomHudControls {
       });
 
       grid.append(button);
-      this.actionButtons.push({ button, lock });
+      this.actionButtons.push({ button, lock, progressLabel, progressRing });
     });
   }
 
@@ -279,8 +290,26 @@ export class DomHudControls {
   setActionAffordable(index: number, affordable: boolean): void {
     const entry = this.actionButtons[index];
     if (!entry) return;
+    if (entry.button.dataset.casting === 'true') return;
     entry.lock.hidden = affordable;
     entry.button.style.opacity = affordable ? '1' : '0.55';
+  }
+
+  setActionCastState(castingIndex: number | null, progress: number): void {
+    this.actionButtons.forEach((entry, index) => {
+      const casting = castingIndex === index;
+      entry.button.dataset.casting = casting ? 'true' : 'false';
+      entry.progressLabel.hidden = !casting;
+
+      if (casting) {
+        entry.progressLabel.textContent = `${Math.round(progress * 100)}%`;
+        entry.progressRing.style.setProperty('--progress', String(progress));
+        entry.button.style.opacity = '1';
+        entry.lock.hidden = true;
+      } else {
+        entry.progressRing.style.removeProperty('--progress');
+      }
+    });
   }
 
   destroy(): void {

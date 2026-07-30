@@ -164,6 +164,10 @@ export class GameHud {
     this.scheduleBlockedRegionRefresh();
   }
 
+  setScareCastState(castingIndex: number | null, progress: number): void {
+    this.domHud.setActionCastState(castingIndex, progress);
+  }
+
   showNpcIndicator(target: { x: number; y: number }, worldDistance: number): void {
     const inset = this.readEdgeInsetX() + 20 * this.uiScale;
     const zoomColumn = (HUD_LAYOUT.zoomButtonSize + HUD_LAYOUT.padding) * this.uiScale;

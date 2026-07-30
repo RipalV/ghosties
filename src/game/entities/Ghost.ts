@@ -22,6 +22,7 @@ export class Ghost extends Phaser.GameObjects.Container {
   private keyboardDirection = new Phaser.Math.Vector2();
   private glimpseTween?: Phaser.Tweens.Tween;
   private wasMoving = false;
+  private castingPresentation = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     super(scene, x, y);
@@ -101,14 +102,35 @@ export class Ghost extends Phaser.GameObjects.Container {
     }
 
     if (moving && !this.wasMoving) {
-      this.setScale(1.04);
+      this.setScale(this.castingPresentation ? 1.08 : 1.04);
     } else if (!moving && this.wasMoving) {
-      this.setScale(1);
+      this.setScale(this.castingPresentation ? 1.08 : 1);
     }
     this.wasMoving = moving;
   }
 
+  /** World-space cue while a scare cast is winding up — face + marker, not colour alone. */
+  setCastingPresentation(active: boolean): void {
+    if (active === this.castingPresentation) return;
+    this.castingPresentation = active;
+
+    if (active) {
+      this.glimpseTween?.stop();
+      this.face.setText('◕‿◕');
+      this.marker.setLabel('CASTING');
+      this.setAlpha(0.92);
+      this.setScale(this.wasMoving ? 1.08 : 1.08);
+      return;
+    }
+
+    this.setAlpha(0.78);
+    this.setScale(this.wasMoving ? 1.04 : 1);
+    this.face.setText('•ᴗ•');
+    this.marker.setLabel('HIDDEN');
+  }
+
   showFailedScareGlimpse(): void {
+    this.setCastingPresentation(false);
     this.glimpseTween?.stop();
     this.setAlpha(1);
     this.setScale(1.15);
